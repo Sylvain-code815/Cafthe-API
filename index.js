@@ -7,7 +7,8 @@ require('dotenv').config(); // Sert à charger les var d'en depuis .env
 //Connexion à la bdd (base de données)
 const db = require('./db');
 
-//Importation des routes à venir
+//Importation des routes
+const articleRoutes = require('./article/routes/ArticleRouter');
 
 //Création à l'application Express
 const app = express();
@@ -40,7 +41,7 @@ app.get("/health", (req, res) => {
 });
 
 // Routes de l'API
-// ... à venir
+app.use("/api/articles", articleRoutes);
 
 // Gestion des erreurs
 // Route 404

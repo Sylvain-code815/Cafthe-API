@@ -31,4 +31,19 @@ const db = mysql.createPool({
     connectTimeout: 10000, // 10s
 });
 
+(async () => {
+   try {
+       const connection = await db.getConnection();
+       console.log("Connecté à la base de données MySQL");
+
+       // se déconnecte
+       connection.release();
+   } catch (err){
+       console.error("Erreur de connection à MySQL : ", err.message)
+
+       // arrête l'application avec code erreur 1
+       process.exit(1);
+   }
+})()
+
 module.exports = db;
