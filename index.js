@@ -21,6 +21,9 @@ app.use(express.json());
 // Logger de requêtes HTTP dans la console
 app.use(morgan("dev"));
 
+// Sert les fichiers statiques (images, produits)
+app.use(express.static("public"));
+
 // Permet les requêtes cross-origin (qui viennent du front)
 // CORS = Cross-Origin Ressource Sharing
 // Obligatoire sinon le navigateur bloque les requêtes

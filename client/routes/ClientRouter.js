@@ -7,7 +7,7 @@ const router = express.Router();
 // Inscription d'un client
 // POST /api/clients/register
 // Body : { nom, prenom, email, mot_de_passe
-router.post("/", register);
+router.post("/register", register);
 
 // Connexion
 // POST /api/clients/login
