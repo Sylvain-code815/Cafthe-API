@@ -1,28 +1,46 @@
 const db = require("../../db");
 const bcrypt = require("bcryptjs");
 
-// rechercher un client par email
+// Rechercher un client par email
 const findClientByEmail = async (email) => {
-    const [rows] = await db.query("SELECT * FROM clients WHERE email_client = ?", [email]);
+    // CORRECTION : Table 'client' (singulier) et colonne 'email' (pas email_client)
+    const [rows] = await db.query("SELECT * FROM client WHERE email = ?", [email]);
     return rows;
 };
 
 // Créer un nouveau client
 const createClient = async (clientData) => {
-    const { nom, prenom, email, mot_de_passe, adresse_facturation, cp_facturation, adresse_livraison, cp_livraison, ville_livraison, telephone } = clientData;
+    // On extrait les données
+    const { nom, prenom, mdp, email, telephone, adresse_livraison, cp_livraison, ville_livraison, adresse_facturation, cp_facturation, ville_facturation } = clientData;
 
-    const [result] = await db.query(// reqête sql
-        "INSERT INTO clients (nom_client, prenom_client, email_client, mdp_client, adresse_facturation, ville_facturation, adresse_livraison, ville_livraison, telephone_client) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", // ? = donnée à passer, les var d'au-dessus
-        [nom, prenom, email, mot_de_passe, adresse_facturation || null, cp_facturation || null, adresse_livraison || null, cp_livraison || null, ville_livraison || null, telephone || null] // ça se sont les données que doit mettre le client de façon obligatoire pour s'inscrire
+    // CORRECTION SQL :
+    // 1. Table 'client' (singulier)
+    // 2. Colonnes : nom_client, prenom_client, email, mdp... (selon ton SQL initial)
+    // 3. J'ai aligné le nombre de points d'interrogation (?) avec le nombre de colonnes
+    const [result] = await db.query(
+        "INSERT INTO client (nom_client, prenom_client, mdp, email, telephone, adresse_livraison, cp_livraison, ville_livraison, adresse_facturation, cp_facturation, ville_facturation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            nom,
+            prenom,
+            mdp,
+            email,
+            telephone || '',
+            adresse_livraison || '',
+            cp_livraison || '',
+            ville_livraison || '',
+            adresse_facturation || '',
+            cp_facturation || '',
+            ville_facturation || ''
+        ]
     );
     return result;
 };
 
-// Hacher un mot de passe : npm i bcrytjs
+// Hacher un mot de passe
 const hashPassword = async (password) => {
-    const round = parseInt(process.env.BCRYPT_ROUNDS || 10);
+    // CORRECTION : Variable 'rounds' (avec s)
+    const rounds = parseInt(process.env.BCRYPT_ROUNDS || 10);
     return await bcrypt.hash(password, rounds);
-    // return await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS || 10)); Possibilité de le faire une une ligne
 };
 
 // Comparer un mot de passe

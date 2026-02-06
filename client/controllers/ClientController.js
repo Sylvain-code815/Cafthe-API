@@ -1,30 +1,34 @@
-// Inscription
-import {comparePassword, createClient, findClientByEmail, hashPassword} from "../models/ClientModel";
-const jwt = require("jsonwebtoken"); // npm i jsonwebtoken
+// CORRECTION 1 : On utilise require, pas import !
+const { comparePassword, createClient, findClientByEmail, hashPassword } = require("../models/ClientModel");
+const jwt = require("jsonwebtoken");
 
+// Inscription
 const register = async (req, res) => {
     try {
-        const { nom, prenom, email, mot_de_passe } = req.body;
+        const { nom, prenom, email, mdp } = req.body;
 
         // Vérifier si l'email existe déjà
         const existingClient = await findClientByEmail(email);
+
+        // CORRECTION : existingClient est un tableau, on vérifie sa longueur
         if (existingClient.length > 0) {
-            return res.status(400).send({
+            return res.status(400).json({ // .json est mieux que .send
                 message: "Cet email est déjà utilisé"
             })
         }
 
         // Hacher le mot de passe
-        const hash = await hashPassword(mot_de_passe);
+        const hash = await hashPassword(mdp);
 
         // Créer le client
         const result = await createClient({
             nom, prenom, email,
-            mot_de_passe: hash,
+            mdp: hash,
         });
 
         res.status(201).json({
             message: "Inscription réussie",
+            // insertId est la propriété standard de mysql2 pour l'ID créé
             client_id: result.insertId,
             client: {nom, prenom, email},
         });
@@ -40,21 +44,20 @@ const register = async (req, res) => {
 // Connexion
 const login = async (req, res) => {
     try {
-        const { email, mod_de_passe } = req.body;
+        const { email, mdp } = req.body;
 
-        // Recherche le client
         const clients = await findClientByEmail(email);
 
         if (clients.length === 0){
             return res.status(401).json({
-                message: "Identifiants incorrects" // Attention ne pas mettre email incorrect, ça donne info aux méchants
+                message: "Identifiants incorrects"
             })
         }
 
         const client = clients[0];
 
         // Vérifier le mot de passe
-        const isMatch = await comparePassword(client.mdp_client, mod_de_passe);
+        const isMatch = await comparePassword(mdp, client.mdp);
 
         if (!isMatch) {
             return res.status(401).json({
@@ -64,10 +67,11 @@ const login = async (req, res) => {
 
         // Générer le token JWT
         const token = jwt.sign({
-            id: client.id_client,
-            email: client.email_client,
-        },
-            process.env.JWT_SECRET_KEY,
+                id: client.code_client, // D'après ton SQL initial : code_client
+                email: client.email,    // D'après ton SQL initial : email
+            },
+            // CORRECTION 3 : Dans ton .env tu as mis JWT_SECRET, pas JWT_SECRET_KEY
+            process.env.JWT_SECRET,
             {expiresIn: process.env.JWT_EXPIRES_IN || "1h"},
         );
 
@@ -75,10 +79,10 @@ const login = async (req, res) => {
             message: "Connexion réussie",
             token,
             client: {
-                id: client.id_client,
+                id: client.code_client,
                 nom: client.nom_client,
                 prenom: client.prenom_client,
-                email: client.email_client,
+                email: client.email,
             }
         })
 
