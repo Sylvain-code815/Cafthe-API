@@ -10,11 +10,11 @@ const register = async (req, res) => {
         // Vérifier si l'email existe déjà
         const existingClient = await findClientByEmail(email);
 
-        // CORRECTION : existingClient est un tableau, on vérifie sa longueur
-        if (existingClient.length > 0) {
-            return res.status(400).json({ // .json est mieux que .send
+        // On vérifie d'abord si existingClient existe avant de lire la longueur
+        if (existingClient && existingClient.length > 0) {
+            return res.status(400).json({
                 message: "Cet email est déjà utilisé"
-            })
+            });
         }
 
         // Hacher le mot de passe
@@ -48,7 +48,7 @@ const login = async (req, res) => {
 
         const clients = await findClientByEmail(email);
 
-        if (clients.length === 0){
+        if (!clients || clients.length === 0){
             return res.status(401).json({
                 message: "Identifiants incorrects"
             })

@@ -8,7 +8,7 @@ const router = express.Router();
 // Vérification de session du client
 // Route protégée
 // GET /api/clients/me
-router.get("me", verifyToken, getMe);
+router.get("/me", verifyToken, getMe);
 
 // Déconnexion
 // Route protégée
