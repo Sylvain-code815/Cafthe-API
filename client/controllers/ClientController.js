@@ -26,12 +26,15 @@ const register = async (req, res) => {
             mdp: hash,
         });
 
+        // check la valeur du insert pour vérifier que le client est bien register
+
         res.status(201).json({
             message: "Inscription réussie",
             // insertId est la propriété standard de mysql2 pour l'ID créé
             client_id: result.insertId,
             client: {nom, prenom, email},
         });
+
 
     } catch (error) {
         console.error("Erreur inscription", error.message);
@@ -72,7 +75,6 @@ const login = async (req, res) => {
                 id: client.code_client, // D'après ton SQL initial : code_client
                 email: client.email,    // D'après ton SQL initial : email
             },
-            // CORRECTION 3 : Dans ton .env tu as mis JWT_SECRET, pas JWT_SECRET_KEY
             process.env.JWT_SECRET,
             {expiresIn: expire},
         );
@@ -98,7 +100,7 @@ const login = async (req, res) => {
     } catch (error) {
         console.error("Erreur de connexion utilisateur", error.message);
         res.status(500).json({
-            message: "Erreur lors de la connexion",
+            message: error.message,
         })
     }
 };

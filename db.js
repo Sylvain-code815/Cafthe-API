@@ -26,7 +26,7 @@ const db = mysql.createPool({
     // Paramètres optionnels mais recommandés
     // En cas d'échec de co, réessayer
     enableKeepAlive: true,
-    KeepAliveInitialDelay: 0,
+    keepAliveInitialDelay: 0,
     // timeout de connexion (millisecondes)
     connectTimeout: 10000, // 10s
 });
