@@ -23,7 +23,7 @@ app.use(express.json());
 app.use(morgan("dev"));
 
 // Sert les fichiers statiques (images, produits)
-app.use(express.static("public"));
+app.use('/images', express.static('public/images'));
 
 // Permet les requêtes cross-origin (qui viennent du front)
 // CORS = Cross-Origin Ressource Sharing
