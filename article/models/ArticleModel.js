@@ -21,4 +21,10 @@ const getArticlesByCategory = async (categorie) => {
     return rows;
 };
 
-module.exports = {getAllArticles, getArticleById, getArticlesByCategory};
+// Récupérer un article uniquement en promotion
+const getPromoArticles = async () => {
+    const [rows] = await db.query("SELECT * FROM produit WHERE produit_promotion = 1");
+    return rows;
+};
+
+module.exports = {getAllArticles, getArticleById, getArticlesByCategory, getPromoArticles};

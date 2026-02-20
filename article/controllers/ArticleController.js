@@ -1,5 +1,5 @@
 // Les données passent par le controller, qui les envoient à l'utilisateur
-const {getAllArticles, getArticleById, getArticlesByCategory} = require("../models/ArticleModel");
+const {getAllArticles, getArticleById, getArticlesByCategory, getPromoArticles} = require("../models/ArticleModel");
 
 // Récupérer tous les articles
 
@@ -73,4 +73,22 @@ const getByCategorie = async (req, res) => {
     }
 }
 
-module.exports = {getAll, getById, getByCategorie};
+// Récupérer les articles en promotion
+const getPromo = async (req, res) => {
+    try {
+        const articles = await getPromoArticles();
+
+        res.json({
+            message: "Articles en promotion récupérés avec succès",
+            count: articles.length,
+            articles,
+        })
+    } catch (error) {
+        console.error("Erreur de récupération des articles en promotion", error.message);
+        res.status(500).json({
+            message: "Erreur de récupération des articles en promotion",
+        });
+    }
+};
+
+module.exports = {getAll, getById, getByCategorie, getPromo};
