@@ -42,6 +42,13 @@ const createClient = async (clientData) => {
     return result;
 };
 
+
+// TODO : Mettre à jour les informations clients (voir créer client)
+
+// Changement de mot de passe
+// TODO : Taper l'ancien mot de passe, confirmer, button pour envoyer, nouveau mdp, envoi à l'API pour vérifier la conformité + comparaison avec l'ancine, confirmation, envoyer
+
+
 // Hacher un mot de passe
 const hashPassword = async (password) => {
     // CORRECTION : Variable 'rounds' (avec s)
@@ -53,6 +60,9 @@ const hashPassword = async (password) => {
 const comparePassword = async (password, hash) => {
     return await bcrypt.compare(password, hash);
 };
+
+
+
 
 module.exports = { findClientByEmail, createClient, hashPassword, comparePassword, findClientById };
 
