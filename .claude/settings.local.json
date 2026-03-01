@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/c/wamp64/bin/mariadb/mariadb10.4.13/bin/mysql.exe:*)"
+    ]
+  }
+}

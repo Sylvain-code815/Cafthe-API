@@ -1,11 +1,11 @@
 // CORRECTION 1 : On utilise require, pas import !
-const { comparePassword, createClient, findClientByEmail, hashPassword, findClientById } = require("../models/ClientModel");
+const { comparePassword, createClient, findClientByEmail, hashPassword, findClientById, updateClient, updatePassword } = require("../models/ClientModel");
 const jwt = require("jsonwebtoken");
 
 // Inscription
 const register = async (req, res) => {
     try {
-        const { nom, prenom, email, mdp } = req.body;
+        const { nom, prenom, email, mdp, telephone } = req.body;
 
         // Vérifier si l'email existe déjà
         const existingClient = await findClientByEmail(email);
@@ -23,7 +23,7 @@ const register = async (req, res) => {
         // Créer le client
         const result = await createClient({
             nom, prenom, email,
-            mdp: hash,
+            mdp: hash, telephone,
         });
 
         // check la valeur du insert pour vérifier que le client est bien register
@@ -94,6 +94,7 @@ const login = async (req, res) => {
                 nom: client.nom_client,
                 prenom: client.prenom_client,
                 email: client.email,
+                telephone: client.telephone,
             }
         })
 
@@ -127,7 +128,8 @@ const getMe = async (req, res) => {
                 id: client.code_client,
                 nom: client.nom_client,
                 prenom: client.prenom_client,
-                email: client.email
+                email: client.email,
+                telephone: client.telephone,
             }
         });
     } catch (error) {
@@ -146,4 +148,69 @@ const logout = (req, res) => {
     res.json({ message: "Déconnexion réussie" });
 };
 
-module.exports = { register, login, logout, getMe };
+// Mise à jour du profil client
+const updateProfile = async (req, res) => {
+    try {
+        const { nom, prenom, email, telephone } = req.body;
+
+        // Vérifier que l'email n'est pas déjà pris par un autre client
+        if (email) {
+            const existing = await findClientByEmail(email);
+            if (existing.length > 0 && existing[0].code_client !== req.client.id) {
+                return res.status(400).json({ message: "Cet email est déjà utilisé" });
+            }
+        }
+
+        const clients = await findClientById(req.client.id);
+        if (clients.length === 0) {
+            return res.status(404).json({ message: "Client introuvable" });
+        }
+
+        const current = clients[0];
+
+        await updateClient(req.client.id, {
+            nom: nom || current.nom_client,
+            prenom: prenom || current.prenom_client,
+            email: email || current.email,
+            telephone: telephone !== undefined ? telephone : current.telephone,
+        });
+
+        res.json({ message: "Profil mis à jour avec succès" });
+    } catch (error) {
+        console.error("Erreur mise à jour profil:", error.message);
+        res.status(500).json({ message: "Erreur lors de la mise à jour du profil" });
+    }
+};
+
+// Changement de mot de passe
+const changePassword = async (req, res) => {
+    try {
+        const { ancienMdp, nouveauMdp } = req.body;
+
+        if (!ancienMdp || !nouveauMdp) {
+            return res.status(400).json({ message: "Ancien et nouveau mot de passe requis" });
+        }
+
+        const clients = await findClientById(req.client.id);
+        if (clients.length === 0) {
+            return res.status(404).json({ message: "Client introuvable" });
+        }
+
+        const client = clients[0];
+
+        const isMatch = await comparePassword(ancienMdp, client.mdp);
+        if (!isMatch) {
+            return res.status(401).json({ message: "Ancien mot de passe incorrect" });
+        }
+
+        const newHash = await hashPassword(nouveauMdp);
+        await updatePassword(req.client.id, newHash);
+
+        res.json({ message: "Mot de passe modifié avec succès" });
+    } catch (error) {
+        console.error("Erreur changement mot de passe:", error.message);
+        res.status(500).json({ message: "Erreur lors du changement de mot de passe" });
+    }
+};
+
+module.exports = { register, login, logout, getMe, updateProfile, changePassword };

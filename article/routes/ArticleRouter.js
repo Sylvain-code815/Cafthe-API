@@ -2,7 +2,7 @@
 // chemin : /api/articles
 
 const express = require("express");
-const { getAll, getById, getByCategorie, getPromo } = require("../controllers/ArticleController");
+const { getAll, getById, getByCategorie, getPromo, getPhare } = require("../controllers/ArticleController");
 
 const router = express.Router();
 
@@ -11,6 +11,9 @@ router.get("/", getAll);
 
 // GET /api/articles/promo - Récupérer les articles en promotion
 router.get("/promo", getPromo);
+
+// GET /api/articles/phare - Récupérer les produits phares
+router.get("/phare", getPhare);
 
 // GET /api/articles/categorie - Récupérer les articles d'une catégorie
 router.get("/categorie/:categorie", getByCategorie);

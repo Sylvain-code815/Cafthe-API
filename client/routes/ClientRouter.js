@@ -1,7 +1,7 @@
 // chemin : /api/clients
 
 const express = require('express'); // Les deux const sont des bibliothèques, pas des fonctions donc on appelle à chaque fois
-const { register, login, getMe, logout} = require("../controllers/ClientController");
+const { register, login, getMe, logout, updateProfile, changePassword } = require("../controllers/ClientController");
 const {verifyToken} = require("../../middleware/authMiddleware");
 const router = express.Router();
 
@@ -26,7 +26,12 @@ router.post("/register", register);
 // Retourne un token JWT
 router.post("/login", login);
 
-// Modification (update
+// Modification du profil
+// PUT /api/clients/me
+router.put("/me", verifyToken, updateProfile);
 
+// Changement de mot de passe
+// PUT /api/clients/me/password
+router.put("/me/password", verifyToken, changePassword);
 
 module.exports = router;

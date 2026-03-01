@@ -16,37 +16,32 @@ const findClientByEmail = async (email) => {
 
 // Créer un nouveau client
 const createClient = async (clientData) => {
-    // On extrait les données
-    const { nom, prenom, mdp, email, telephone, adresse_livraison, cp_livraison, ville_livraison, adresse_facturation, cp_facturation, ville_facturation } = clientData;
-
-    // CORRECTION SQL :
-    // 1. Table 'client' (singulier)
-    // 2. Colonnes : nom_client, prenom_client, email, mdp... (selon ton SQL initial)
-    // 3. J'ai aligné le nombre de points d'interrogation (?) avec le nombre de colonnes
+    const { nom, prenom, mdp, email, telephone } = clientData;
     const [result] = await db.query(
-        "INSERT INTO client (nom_client, prenom_client, mdp, email, telephone, adresse_livraison, cp_livraison, ville_livraison, adresse_facturation, cp_facturation, ville_facturation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [
-            nom,
-            prenom,
-            mdp,
-            email,
-            telephone || '',
-            adresse_livraison || '',
-            cp_livraison || '',
-            ville_livraison || '',
-            adresse_facturation || '',
-            cp_facturation || '',
-            ville_facturation || ''
-        ]
+        "INSERT INTO client (nom_client, prenom_client, mdp, email, telephone) VALUES (?, ?, ?, ?, ?)",
+        [nom, prenom, mdp, email, telephone || '']
     );
     return result;
 };
 
+// Mettre à jour les informations d'un client
+const updateClient = async (id, data) => {
+    const { nom, prenom, email, telephone } = data;
+    const [result] = await db.query(
+        "UPDATE client SET nom_client = ?, prenom_client = ?, email = ?, telephone = ? WHERE code_client = ?",
+        [nom, prenom, email, telephone || '', id]
+    );
+    return result;
+};
 
-// TODO : Mettre à jour les informations clients (voir créer client)
-
-// Changement de mot de passe
-// TODO : Taper l'ancien mot de passe, confirmer, button pour envoyer, nouveau mdp, envoi à l'API pour vérifier la conformité + comparaison avec l'ancine, confirmation, envoyer
+// Mettre à jour le mot de passe d'un client
+const updatePassword = async (id, newHash) => {
+    const [result] = await db.query(
+        "UPDATE client SET mdp = ? WHERE code_client = ?",
+        [newHash, id]
+    );
+    return result;
+};
 
 
 // Hacher un mot de passe
@@ -64,5 +59,5 @@ const comparePassword = async (password, hash) => {
 
 
 
-module.exports = { findClientByEmail, createClient, hashPassword, comparePassword, findClientById };
+module.exports = { findClientByEmail, createClient, hashPassword, comparePassword, findClientById, updateClient, updatePassword };
 

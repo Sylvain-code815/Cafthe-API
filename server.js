@@ -11,6 +11,8 @@ const db = require('./db');
 //Importation des routes
 const articleRoutes = require('./article/routes/ArticleRouter');
 const clientRoutes = require('./client/routes/ClientRouter');
+const promotionRoutes = require('./promotion/routes/PromotionRouter');
+const adresseRoutes = require('./adresse/routes/AdresseRouter');
 
 //Création à l'application Express
 const app = express();
@@ -52,6 +54,8 @@ app.get("/health", (req, res) => {
 // Routes de l'API
 app.use("/api/articles", articleRoutes);
 app.use("/api/clients", clientRoutes);
+app.use("/api/promotions", promotionRoutes);
+app.use("/api/adresses", adresseRoutes);
 
 // Gestion des erreurs
 // Route 404

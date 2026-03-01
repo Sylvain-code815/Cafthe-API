@@ -27,4 +27,10 @@ const getPromoArticles = async () => {
     return rows;
 };
 
-module.exports = {getAllArticles, getArticleById, getArticlesByCategory, getPromoArticles};
+// Récupérer les produits phares
+const getPhareArticles = async () => {
+    const [rows] = await db.query("SELECT * FROM produit WHERE produit_phare = 1");
+    return rows;
+};
+
+module.exports = {getAllArticles, getArticleById, getArticlesByCategory, getPromoArticles, getPhareArticles};
