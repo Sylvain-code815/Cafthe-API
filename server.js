@@ -32,7 +32,7 @@ app.use('/images', express.static('public/images'));
 // Obligatoire sinon le navigateur bloque les requêtes
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173 ',
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }),
@@ -67,7 +67,7 @@ app.use((req, res) => {
 
 // Démarrage du serveur
 const port = process.env.PORT || 3000;
-const host = process.env.Host || "localhost";
+const host = process.env.HOST || "localhost";
 
 app.listen(port, host, () => {
     console.log(`Serveur démarré sur http://${host}:${port}`);

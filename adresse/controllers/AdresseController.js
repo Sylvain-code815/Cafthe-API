@@ -1,4 +1,4 @@
-nodemonconst { getAdressesByClient, createAdresse, updateAdresse, deleteAdresse, getAdresseById } = require("../models/AdresseModel");
+const { getAdressesByClient, createAdresse, updateAdresse, deleteAdresse, getAdresseById } = require("../models/AdresseModel");
 
 // Récupérer les adresses du client connecté
 const getAll = async (req, res) => {
