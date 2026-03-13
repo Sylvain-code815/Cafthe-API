@@ -9,7 +9,6 @@ const findClientById = async (id) => {
 
 // Rechercher un client par email
 const findClientByEmail = async (email) => {
-    // CORRECTION : Table 'client' (singulier) et colonne 'email' (pas email_client)
     const [rows] = await db.query("SELECT * FROM client WHERE email = ?", [email]);
     return rows;
 };

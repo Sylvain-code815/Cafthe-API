@@ -31,12 +31,16 @@ app.use('/images', express.static('public/images'));
 // CORS = Cross-Origin Ressource Sharing
 // Obligatoire sinon le navigateur bloque les requêtes
 
+// Acceptation de la deuxième adresse et de la virgule de mon JSON, transformation en tableau
+const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',')
+    : ['http://localhost:5173', 'http://localhost:5174'];
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
-}),
-);
+}));
 
 // Parse les cookies dans req
 app.use(cookieParser());

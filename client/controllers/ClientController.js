@@ -1,4 +1,3 @@
-// CORRECTION 1 : On utilise require, pas import !
 const { comparePassword, createClient, findClientByEmail, hashPassword, findClientById, updateClient, updatePassword } = require("../models/ClientModel");
 const jwt = require("jsonwebtoken");
 

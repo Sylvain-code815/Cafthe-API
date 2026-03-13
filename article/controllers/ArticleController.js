@@ -2,8 +2,6 @@
 const {getAllArticles, getArticleById, getArticlesByCategory, getPromoArticles, getPhareArticles} = require("../models/ArticleModel");
 
 // Récupérer tous les articles
-
-
 const getAll = async (req, res) => {
     try {
         const articles = await getAllArticles();
@@ -53,10 +51,8 @@ const getById = async (req, res) => {
 // Récupérer les produits par catégorie
 const getByCategorie = async (req, res) => {
     try {
-        // 1. On récupère 'categorie' car dans le routeur tu as mis "/categorie/:categorie"
         const { categorie } = req.params;
 
-        // 2. On passe cette variable au Modèle
         const articles = await getArticlesByCategory(categorie);
 
         res.json({

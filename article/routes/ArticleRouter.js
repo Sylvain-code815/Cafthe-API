@@ -21,5 +21,4 @@ router.get("/categorie/:categorie", getByCategorie);
 // GET /api/articles/:id - Récupérer un article par son Id
 router.get("/:id", getById);
 
-// On doit exporter "router" (l'objet d'Express), et non les fonctions !
 module.exports = router;

@@ -1,7 +1,5 @@
 const db = require("../../db");
 
-// /!\ Trouver comment mettre en cache les données récupérée de la db
-
 // Fonction pour récupérer tous les articles
 const getAllArticles = async () => {
     const [rows] = await db.query("SELECT * FROM produit");
