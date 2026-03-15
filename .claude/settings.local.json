@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(/c/wamp64/bin/mariadb/mariadb10.4.13/bin/mysql.exe:*)"
+      "Bash(/c/wamp64/bin/mariadb/mariadb10.4.13/bin/mysql.exe:*)",
+      "Bash(git -C /a/dev/Cafthe-API log --oneline --all | head -20)",
+      "Bash(git -C /a/dev/Cafthe-API show 51e1cb3 2>/dev/null | head -100)",
+      "Bash(C:/wamp64/bin/mariadb/mariadb11.3.2/bin/mariadb.exe -h localhost -u root -e \"SHOW TABLES; DESCRIBE produit;\" \"cafthé\" 2>/dev/null)",
+      "Bash(\"C:/wamp64/bin/mariadb/mariadb11.3.2/bin/mariadb.exe\" -h localhost -u root -e \"SHOW TABLES; DESCRIBE produit;\" \"cafthé\")",
+      "Bash(\"C:/wamp64/bin/mariadb/mariadb10.4.13/bin/mysql.exe\" -h localhost -u root -e \"SHOW TABLES; DESCRIBE produit; DESCRIBE client; DESCRIBE adresse;\" \"cafthé\")",
+      "Read(//c/wamp64/bin/mariadb/mariadb11.3.2/bin/**)",
+      "Read(//c/wamp64/bin/mariadb//**)"
     ]
   }
 }
