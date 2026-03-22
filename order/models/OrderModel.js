@@ -1,4 +1,4 @@
-const db = require("../config/db"); // Adapte le chemin vers ton fichier de connexion BDD
+const db = require("../config/db");
 
 const OrderModel = {
   // Création de la commande complète

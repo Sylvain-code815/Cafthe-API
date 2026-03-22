@@ -45,7 +45,6 @@ const updatePassword = async (id, newHash) => {
 
 // Hacher un mot de passe
 const hashPassword = async (password) => {
-    // CORRECTION : Variable 'rounds' (avec s)
     const rounds = parseInt(process.env.BCRYPT_ROUNDS || 10);
     return await bcrypt.hash(password, rounds);
 };
