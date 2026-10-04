@@ -2,7 +2,7 @@
 // mysql2 pour faire des requêtes asynchrones async/await
 
 const mysql = require("mysql2/promise");
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 
 // Pool de connexions, permet de :
 // Gérer plusieurs connexions simultanées
@@ -13,6 +13,7 @@ require("dotenv").config();
 const db = mysql.createPool({
     // Paramètres de connexion (host, nom d'utilisateur, mdp, nom bdd)
     host: process.env.DB_HOST,
+    port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,

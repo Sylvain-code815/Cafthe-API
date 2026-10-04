@@ -1,4 +1,5 @@
 const { getAllPromotions, getActivePromotions, getPromotionById } = require("../models/PromotionModel");
+const { parseId } = require("../../utils/validators");
 
 // Récupérer toutes les promotions
 const getAll = async (req, res) => {
@@ -32,8 +33,12 @@ const getActive = async (req, res) => {
 
 // Récupérer une promotion par son id
 const getById = async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) {
+        return res.status(400).json({ message: "Identifiant de promotion invalide" });
+    }
+
     try {
-        const { id } = req.params;
         const promotions = await getPromotionById(id);
 
         if (promotions.length === 0) {

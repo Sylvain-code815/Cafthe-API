@@ -1,0 +1,801 @@
+openapi: 3.0.3
+info:
+  title: CafThé API
+  version: 2.0.0
+  description: |
+    REST API of the CafThé e-commerce platform (Node.js + Express + MySQL).
+
+    **Authentication**: a JWT is issued on login and stored in an `HttpOnly`,
+    `SameSite=Strict` cookie named `token`. Front-end calls must use
+    `fetch(url, { credentials: "include" })`. The token can also be sent in an
+    `Authorization: Bearer <token>` header (Postman tests).
+
+    **Roles**: `ROLE_CLIENT` (customer), `ROLE_SELLER` (shop seller), `ROLE_ADMIN`.
+
+    **Products sold by weight** (`type_vente` other than Sachet, Boite, Unité):
+    `prix_ttc` and `stock` are expressed per 100 g.
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+tags:
+  - name: Articles
+    description: Product catalogue
+  - name: Clients
+    description: Customer accounts and in-store customer files
+  - name: Adresses
+    description: Address book of the logged-in customer
+  - name: Orders
+    description: Online orders, in-store sales and order tracking
+  - name: Employees
+    description: Staff authentication and seller account management
+  - name: Dashboard
+    description: Key performance indicators
+  - name: Promotions
+    description: Promotional campaigns
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Invalid input (missing field, wrong format...)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing, invalid or expired token / wrong credentials
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authenticated but the role is not allowed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found (or owned by another customer)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Business rule conflict (duplicate email, insufficient stock, invalid status transition)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooManyRequests:
+      description: Too many authentication attempts (10 per 15 minutes per IP)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: array
+          items: { type: string }
+    Article:
+      type: object
+      properties:
+        code_produit: { type: integer, example: 3 }
+        nom_produit: { type: string, example: Thé Vert Sencha }
+        description: { type: string }
+        categorie: { type: string, enum: [Thé, Café, Accessoire] }
+        type_vente: { type: string, example: Boite }
+        tva: { type: number, description: "Derived from the category (5.5 or 20)" }
+        prix_HT: { type: number }
+        prix_ttc: { type: number, description: "Computed by the server: prix_HT * (1 + tva / 100)" }
+        stock: { type: integer }
+        image: { type: string, description: "File name, served at /images/<image>" }
+        origine: { type: string }
+        produit_phare: { type: integer, enum: [0, 1] }
+        nouveaute: { type: integer, enum: [0, 1] }
+        produit_promotion: { type: integer, enum: [0, 1] }
+        taux_remise: { type: integer, description: "Discount percentage applied when produit_promotion = 1" }
+        active: { type: integer, enum: [0, 1] }
+    ArticleList:
+      type: object
+      properties:
+        message: { type: string }
+        count: { type: integer }
+        total: { type: integer }
+        page: { type: integer }
+        totalPages: { type: integer }
+        articles:
+          type: array
+          items: { $ref: "#/components/schemas/Article" }
+    ArticleInput:
+      type: object
+      required: [nom_produit, description, categorie, type_vente, prix_HT, origine]
+      properties:
+        nom_produit: { type: string, maxLength: 50 }
+        description: { type: string, maxLength: 255 }
+        categorie: { type: string, enum: [Thé, Café, Accessoire] }
+        type_vente: { type: string, maxLength: 20 }
+        prix_HT: { type: number, minimum: 0 }
+        stock: { type: integer, minimum: 0, default: 0 }
+        image: { type: string, maxLength: 150 }
+        origine: { type: string, maxLength: 100 }
+        produit_phare: { type: boolean, default: false }
+        nouveaute: { type: boolean, default: false }
+        produit_promotion: { type: boolean, default: false }
+        taux_remise: { type: integer, minimum: 0, maximum: 90, default: 0 }
+        active: { type: boolean, description: "PUT only: reactivate a product" }
+    Client:
+      type: object
+      description: The password hash is never returned.
+      properties:
+        id: { type: integer }
+        nom: { type: string }
+        prenom: { type: string }
+        email: { type: string, format: email }
+        telephone: { type: string, example: "0601020304" }
+    Adresse:
+      type: object
+      required: [rue, cp, ville]
+      properties:
+        id_adresse: { type: integer, readOnly: true }
+        titre: { type: string, default: Domicile }
+        rue: { type: string }
+        cp: { type: string, example: "75001" }
+        ville: { type: string }
+        pays: { type: string, default: France }
+    Password:
+      type: string
+      format: password
+      minLength: 12
+      description: At least 12 characters with upper case, lower case, digit and special character.
+    OrderLine:
+      type: object
+      required: [code_produit, quantite]
+      properties:
+        code_produit: { type: integer }
+        quantite: { type: integer, minimum: 1, maximum: 100 }
+        poids: { type: integer, enum: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000], description: "Grams, required for products sold by weight" }
+    Order:
+      type: object
+      properties:
+        num_commande: { type: integer }
+        statut_commande: { type: string, enum: [pending, preparing, shipped, delivered] }
+        mode_commande: { type: string, enum: [web, store] }
+        date_commande: { type: string, format: date-time }
+        mode_paiement: { type: string, enum: [card, paypal, in_store, cash, check] }
+        total: { type: number, description: "Lines (discounts included) + delivery fee" }
+        date_paiement: { type: string, format: date-time, nullable: true }
+        adresse_livraison: { $ref: "#/components/schemas/Adresse" }
+        adresse_facturation: { $ref: "#/components/schemas/Adresse" }
+        livraison:
+          type: object
+          nullable: true
+          properties:
+            num_bl: { type: integer }
+            delai_livraison: { type: integer }
+            date_livraison: { type: string, format: date }
+            choix_transporteur: { type: string, enum: [standard, express, free] }
+        lignes:
+          type: array
+          items:
+            type: object
+            properties:
+              code_produit: { type: integer }
+              nom_produit: { type: string }
+              type_vente: { type: string }
+              quantite: { type: integer, description: "Units, or 100 g portions for products sold by weight" }
+              prix_unitaire_achete: { type: number, description: "Price frozen at purchase time" }
+              sous_total: { type: number }
+    Employee:
+      type: object
+      properties:
+        num_employe: { type: integer }
+        nom_employe: { type: string }
+        prenom_employe: { type: string }
+        email_employe: { type: string, format: email }
+        tel_employe: { type: string }
+        role: { type: string, enum: [ROLE_SELLER, ROLE_ADMIN] }
+
+security: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200": { description: API is running }
+
+  /api/articles:
+    get:
+      tags: [Articles]
+      summary: List active products (public)
+      parameters:
+        - { name: category, in: query, schema: { type: string, enum: [Thé, Café, Accessoire] }, description: Accents and case are ignored }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 }, description: Search in name and description }
+        - { name: minPrice, in: query, schema: { type: number } }
+        - { name: maxPrice, in: query, schema: { type: number } }
+        - { name: featured, in: query, schema: { type: boolean } }
+        - { name: onSale, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [price_asc, price_desc, name_asc, name_desc] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 }, description: Enables pagination }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 12 } }
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArticleList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [Articles]
+      summary: Create a product (admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ArticleInput" }
+      responses:
+        "201": { description: Product created }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/articles/promo:
+    get:
+      tags: [Articles]
+      summary: Products on sale (public)
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArticleList" }
+
+  /api/articles/phare:
+    get:
+      tags: [Articles]
+      summary: Featured products (public)
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArticleList" }
+
+  /api/articles/categorie/{categorie}:
+    get:
+      tags: [Articles]
+      summary: Products of a category (public, accents and case ignored)
+      parameters:
+        - { name: categorie, in: path, required: true, schema: { type: string, example: the } }
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArticleList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /api/articles/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      tags: [Articles]
+      summary: Get one active product (public)
+      responses:
+        "200": { description: Product found }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Articles]
+      summary: Update a product, only the sent fields are changed (admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ArticleInput" }
+      responses:
+        "200": { description: Product updated }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Articles]
+      summary: Deactivate a product, order history is kept (admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200": { description: Product deactivated }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/clients/register:
+    post:
+      tags: [Clients]
+      summary: Create a customer account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom, prenom, email, mdp]
+              properties:
+                nom: { type: string, maxLength: 60 }
+                prenom: { type: string, maxLength: 20 }
+                email: { type: string, format: email }
+                telephone: { type: string, description: "Optional, 10 digits" }
+                mdp: { $ref: "#/components/schemas/Password" }
+      responses:
+        "201": { description: Account created }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/clients/activate:
+    post:
+      tags: [Clients]
+      summary: Activate an account created in store (email + phone check) and set its password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, telephone, mdp]
+              properties:
+                email: { type: string, format: email }
+                telephone: { type: string }
+                mdp: { $ref: "#/components/schemas/Password" }
+      responses:
+        "200": { description: Account activated, auth cookie set }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/clients/login:
+    post:
+      tags: [Clients]
+      summary: Customer login (sets the HttpOnly cookie)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, mdp]
+              properties:
+                email: { type: string, format: email, example: marie.dupont@email.com }
+                mdp: { type: string, format: password, example: "CafThe#2026test" }
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  client: { $ref: "#/components/schemas/Client" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/clients/logout:
+    post:
+      tags: [Clients]
+      summary: Log out (clears the cookie)
+      responses:
+        "200": { description: Logged out }
+
+  /api/clients/me:
+    get:
+      tags: [Clients]
+      summary: Logged-in customer profile
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client: { $ref: "#/components/schemas/Client" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Clients]
+      summary: Update personal information (missing fields are kept)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nom: { type: string }
+                prenom: { type: string }
+                email: { type: string, format: email }
+                telephone: { type: string }
+      responses:
+        "200": { description: Profile updated }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/clients/me/password:
+    put:
+      tags: [Clients]
+      summary: Change password (current password required)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ancienMdp, nouveauMdp]
+              properties:
+                ancienMdp: { type: string, format: password }
+                nouveauMdp: { $ref: "#/components/schemas/Password" }
+      responses:
+        "200": { description: Password changed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/clients:
+    get:
+      tags: [Clients]
+      summary: Search customers by name, email or phone (seller / admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, required: true, schema: { type: string, maxLength: 100 } }
+      responses:
+        "200": { description: Matching customers }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Clients]
+      summary: Create a customer in store, without password (seller / admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom, prenom, email, telephone]
+              properties:
+                nom: { type: string }
+                prenom: { type: string }
+                email: { type: string, format: email }
+                telephone: { type: string }
+      responses:
+        "201": { description: Customer created }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/clients/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      tags: [Clients]
+      summary: Customer file with unified order history and statistics (seller / admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200": { description: Customer file }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/adresses:
+    get:
+      tags: [Adresses]
+      summary: List my addresses
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Address list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  adresses:
+                    type: array
+                    items: { $ref: "#/components/schemas/Adresse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Adresses]
+      summary: Add an address
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Adresse" }
+      responses:
+        "201":
+          description: Address created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  adresse_id: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/adresses/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      tags: [Adresses]
+      summary: Update one of my addresses
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Adresse" }
+      responses:
+        "200": { description: Address updated }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Adresses]
+      summary: Delete one of my addresses (refused if used by an order)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200": { description: Address deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/orders:
+    post:
+      tags: [Orders]
+      summary: Place an order (customer) or record an in-store sale (seller / admin)
+      description: |
+        Runs in a single SQL transaction: product rows are locked, stock is checked,
+        prices and discounts are read from the database (never from the request),
+        lines and delivery note are inserted and stock is decremented.
+        Any failure rolls everything back.
+
+        - Customer, home delivery: `mode_livraison` standard (4.99, 5 days), express (9.99, 2 days)
+          or free (7 days) + `id_adresse_livraison`; payment `card` or `paypal`.
+        - Customer, store pickup: `mode_livraison: pickup`, payment `card`, `paypal` or `in_store` (paid on pickup).
+        - Staff, in-store sale: `code_client`, payment `card`, `cash` or `check`; the order is created as `delivered`.
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lines, mode_paiement]
+              properties:
+                lines:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { $ref: "#/components/schemas/OrderLine" }
+                mode_livraison: { type: string, enum: [standard, express, free, pickup] }
+                id_adresse_livraison: { type: integer }
+                id_adresse_facturation: { type: integer, description: "Defaults to the delivery address" }
+                mode_paiement: { type: string, enum: [card, paypal, in_store, cash, check] }
+                code_client: { type: integer, description: Staff only }
+            example:
+              lines: [{ code_produit: 3, quantite: 2 }, { code_produit: 8, quantite: 1, poids: 500 }]
+              mode_livraison: standard
+              id_adresse_livraison: 1
+              mode_paiement: card
+      responses:
+        "201":
+          description: Order recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  num_commande: { type: integer }
+                  total: { type: number }
+                  frais_livraison: { type: number }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    get:
+      tags: [Orders]
+      summary: List all orders (seller / admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, preparing, shipped, delivered] } }
+        - { name: mode, in: query, schema: { type: string, enum: [web, store] } }
+      responses:
+        "200": { description: Order list }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/orders/me:
+    get:
+      tags: [Orders]
+      summary: Order history of the logged-in customer (web and in-store)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200": { description: Order history }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/orders/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      tags: [Orders]
+      summary: Order details (owner or staff; 404 for another customer's order)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  commande: { $ref: "#/components/schemas/Order" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/orders/{id}/status:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      tags: [Orders]
+      summary: Move an order to its next status (seller / admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [statut_commande]
+              properties:
+                statut_commande: { type: string, enum: [preparing, shipped, delivered] }
+      responses:
+        "200": { description: Status updated }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/employees/login:
+    post:
+      tags: [Employees]
+      summary: Staff login (30-minute session)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, mdp]
+              properties:
+                email: { type: string, format: email, example: admin@cafthe.com }
+                mdp: { type: string, format: password, example: "CafThe#2026test" }
+      responses:
+        "200": { description: Logged in }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/employees/logout:
+    post:
+      tags: [Employees]
+      summary: Staff logout
+      responses:
+        "200": { description: Logged out }
+
+  /api/employees:
+    get:
+      tags: [Employees]
+      summary: List staff accounts (admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Staff list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  employes:
+                    type: array
+                    items: { $ref: "#/components/schemas/Employee" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Employees]
+      summary: Create a staff account (admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom_employe, prenom_employe, email_employe, tel_employe, role, mdp_employe]
+              properties:
+                nom_employe: { type: string }
+                prenom_employe: { type: string, maxLength: 20 }
+                email_employe: { type: string, format: email }
+                tel_employe: { type: string }
+                role: { type: string, enum: [ROLE_SELLER, ROLE_ADMIN] }
+                mdp_employe: { $ref: "#/components/schemas/Password" }
+      responses:
+        "201": { description: Staff account created }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/employees/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      tags: [Employees]
+      summary: Update a staff account, password optional (admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200": { description: Staff account updated }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Employees]
+      summary: Delete a staff account (admin, not oneself)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200": { description: Staff account deleted }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/dashboard/kpi:
+    get:
+      tags: [Dashboard]
+      summary: Revenue, sales count, average basket, top 10 products, sales by category, new customers (seller / admin)
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200": { description: KPI }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/promotions:
+    get:
+      tags: [Promotions]
+      summary: List promotional campaigns (public)
+      responses:
+        "200": { description: Promotion list }
+
+  /api/promotions/active:
+    get:
+      tags: [Promotions]
+      summary: Currently running campaigns (public)
+      responses:
+        "200": { description: Promotion list }
+
+  /api/promotions/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      tags: [Promotions]
+      summary: One promotional campaign (public)
+      responses:
+        "200": { description: Promotion }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }

@@ -1,24 +1,35 @@
 const db = require("../../db");
-const bcrypt = require("bcryptjs");
 
-// Rechercher un client par son id
+// Colonnes publiques d'un client : le mot de passe haché n'en fait JAMAIS partie
+const PUBLIC_COLUMNS = "code_client, nom_client, prenom_client, email, telephone, num_employe_createur, created_at";
+
+// Rechercher un client par son id (sans mot de passe)
 const findClientById = async (id) => {
-    const [rows] = await db.query("SELECT * FROM client WHERE code_client = ?", [id]);
+    const [rows] = await db.query(`SELECT ${PUBLIC_COLUMNS} FROM client WHERE code_client = ?`, [id]);
     return rows;
 };
 
-// Rechercher un client par email
+// Rechercher un client par email, AVEC l'empreinte du mot de passe
+// À n'utiliser que pour l'authentification (ne jamais renvoyer ce résultat au front)
 const findClientByEmail = async (email) => {
     const [rows] = await db.query("SELECT * FROM client WHERE email = ?", [email]);
     return rows;
 };
 
+// Récupérer l'empreinte du mot de passe d'un client (changement de mot de passe)
+const findClientPasswordHash = async (id) => {
+    const [rows] = await db.query("SELECT mdp FROM client WHERE code_client = ?", [id]);
+    return rows[0]?.mdp;
+};
+
 // Créer un nouveau client
+// mdp = null et num_employe_createur renseigné quand le client est créé en caisse par un vendeur
 const createClient = async (clientData) => {
-    const { nom, prenom, mdp, email, telephone } = clientData;
+    const { nom, prenom, mdp = null, email, telephone, num_employe_createur = null } = clientData;
     const [result] = await db.query(
-        "INSERT INTO client (nom_client, prenom_client, mdp, email, telephone) VALUES (?, ?, ?, ?, ?)",
-        [nom, prenom, mdp, email, telephone || '']
+        `INSERT INTO client (nom_client, prenom_client, mdp, email, telephone, num_employe_createur)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [nom, prenom, mdp, email, telephone || '', num_employe_createur]
     );
     return result;
 };
@@ -33,7 +44,7 @@ const updateClient = async (id, data) => {
     return result;
 };
 
-// Mettre à jour le mot de passe d'un client
+// Mettre à jour le mot de passe d'un client (changement ou activation d'un compte boutique)
 const updatePassword = async (id, newHash) => {
     const [result] = await db.query(
         "UPDATE client SET mdp = ? WHERE code_client = ?",
@@ -42,20 +53,55 @@ const updatePassword = async (id, newHash) => {
     return result;
 };
 
-
-// Hacher un mot de passe
-const hashPassword = async (password) => {
-    const rounds = parseInt(process.env.BCRYPT_ROUNDS || 10);
-    return await bcrypt.hash(password, rounds);
+// Rechercher des clients par nom, prénom, email ou téléphone (vente en caisse)
+const searchClients = async (search) => {
+    const like = `%${search}%`;
+    const [rows] = await db.query(
+        `SELECT ${PUBLIC_COLUMNS}, (mdp IS NOT NULL) AS compte_actif
+         FROM client
+         WHERE nom_client LIKE ? OR prenom_client LIKE ? OR email LIKE ? OR telephone LIKE ?
+         ORDER BY nom_client, prenom_client
+         LIMIT 50`,
+        [like, like, like, like]
+    );
+    return rows;
 };
 
-// Comparer un mot de passe
-const comparePassword = async (password, hash) => {
-    return await bcrypt.compare(password, hash);
+// Statistiques personnalisées d'un client (CDC 5.5) :
+// nombre de commandes, panier moyen, montant total, dernier achat, produits favoris
+const getClientStats = async (id) => {
+    const [[stats]] = await db.query(
+        `SELECT COUNT(*) AS nombre_commandes,
+                COALESCE(ROUND(AVG(total), 2), 0) AS panier_moyen,
+                COALESCE(SUM(total), 0) AS total_depense,
+                MAX(date_commande) AS dernier_achat
+         FROM commande
+         WHERE code_client = ?`,
+        [id]
+    );
+
+    const [favoris] = await db.query(
+        `SELECT p.code_produit, p.nom_produit, SUM(l.quantite) AS quantite_totale
+         FROM ligne_commande l
+         JOIN commande c ON c.num_commande = l.num_commande
+         JOIN produit p ON p.code_produit = l.code_produit
+         WHERE c.code_client = ?
+         GROUP BY p.code_produit, p.nom_produit
+         ORDER BY quantite_totale DESC
+         LIMIT 3`,
+        [id]
+    );
+
+    return { ...stats, produits_favoris: favoris };
 };
 
-
-
-
-module.exports = { findClientByEmail, createClient, hashPassword, comparePassword, findClientById, updateClient, updatePassword };
-
+module.exports = {
+    findClientByEmail,
+    findClientById,
+    findClientPasswordHash,
+    createClient,
+    updateClient,
+    updatePassword,
+    searchClients,
+    getClientStats,
+};
