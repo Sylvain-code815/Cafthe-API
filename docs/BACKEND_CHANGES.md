@@ -332,6 +332,44 @@ stock 80 tranches ; Matcha (id 13) stock 15 ; Théière (id 24) 45,00 €, stock
 
 ---
 
+## 3 bis. Mise en production — journal, erreurs commises et difficultés
+
+La mise en ligne (04-05/10/2026) ne s'est pas faite du premier coup. Chaque problème est noté ici avec sa
+cause et sa solution : le RE évalue aussi « la démarche structurée de résolution de problème ».
+Ces éléments ont été ajoutés au dossier Word (VIII.2 « Difficultés rencontrées et erreurs corrigées »).
+
+| # | Problème rencontré | Cause | Résolution |
+|---|---|---|---|
+| 1 | Le travail avait été fait sur une **ancienne copie** du dépôt (Bureau, janvier) | Le dépôt réellement déployé (`A:\dev\Cafthe-API`) avait 16 commits d'avance ; pas vérifié au départ | Découvert en reliant le front (routes `/api/adresses`, `/promo` absentes). Travail reporté et adapté au schéma réel. Leçon : vérifier `git log` et la branche distante avant de commencer |
+| 2 | « Pourquoi migrer la base si le site est déjà déployé ? » | Déployer le code ne modifie pas la base ; la nouvelle API attendait `produit.active`, `client.created_at`... | Migration `001_exam_features.sql` répétée sur une copie locale de `cafthé`, puis appliquée en production après un export phpMyAdmin. L'ancien site continuait de fonctionner après la migration |
+| 3 | `npm run hash-passwords` : « 0 mot de passe haché » | Lancé sur le PC : il a traité la base locale (déjà hachée) | — |
+| 4 | Même script via « Démarrer le script » de Plesk : `Access denied for user ''@'localhost'` | Ce bouton ne transmet pas les variables d'environnement personnalisées | Nouveaux mots de passe forts hachés en bcrypt sur le poste, collés par `UPDATE employe ...` dans phpMyAdmin. Vérifié : ancien mot de passe refusé (401), nouveau accepté (200) |
+| 5 | `JWT_SECRET=maSuperCleSecreteQuePersonneNeConnait` en production | Clé devinable ; avec le rôle dans le jeton, elle permettrait de forger un jeton admin | Remplacée par une clé aléatoire de 96 caractères (les clients doivent se reconnecter une fois) |
+| 6 | Mot de passe de la base visible sur une capture d'écran | Partage d'une capture de la page des variables Plesk | Mot de passe changé ; masquer ce bloc dans les captures |
+| 7 | phpMyAdmin : `Access denied for user 'CafTheAPI815'` | Onglet ouvert avant le changement de mot de passe | Fermer l'onglet et rouvrir phpMyAdmin depuis Plesk |
+| 8 | Front en **403** juste après l'envoi des fichiers | Vérification faite pendant le transfert, `index.html` pas encore présent | Le site répond 200 une fois l'envoi terminé |
+| 9 | Fichier **`ty.php`** (Tiny File Manager, 192 Ko, 21/06/2026) à la racine du front | Origine inconnue ; un site React ne contient aucun PHP ; outil permettant de gérer les fichiers du serveur depuis un navigateur (porte dérobée classique) | Supprimé. Suivi : chercher d'autres fichiers inconnus, changer les mots de passe Plesk/FTP, prévenir l'administrateur du campus |
+| 10 | Connexion des comptes **employés** refusée sur le site | La page de connexion du front ne concerne que les clients | Les employés se connectent par `POST /api/employees/login` (Swagger, Postman) |
+| 11 | Swagger en production : impossible de tester | `docs/openapi.yaml` ne déclarait que `http://localhost:3000` : les requêtes partaient vers le PC (erreur de ma part) | Serveur courant `/` ajouté (commit `346d934`), déploiement Git + redémarrage Node.js, puis connexion admin : **200** |
+| 12 | Commande sur le site : « Accès interdit : droits insuffisants » (403) | Le cookie `token` appartient au domaine de l'API : la connexion **admin** dans Swagger a remplacé la session **client** dans le même navigateur | Comportement attendu (le contrôle des rôles fonctionne). Se déconnecter puis se reconnecter en client, ou tester l'admin dans une fenêtre privée |
+
+### Vérification en production du contrôle d'accès (captures ajoutées au dossier, partie VI.4)
+
+![GET /api/employees en production](captures/swagger-prod-employees-admin-200.png)
+
+*`GET /api/employees` connecté en `ROLE_ADMIN` : 200, aucun mot de passe dans la réponse. En-têtes visibles :
+`access-control-allow-credentials: true` (CORS + cookie), `content-security-policy`, `x-frame-options`,
+`x-content-type-options`, `strict-transport-security` (Helmet), `cross-origin-resource-policy: same-site`.
+Point relevé : `x-powered-by: Phusion Passenger, PleskLin` est ajouté par l'hébergeur (Helmet retire
+seulement « Express ») → à masquer côté configuration Plesk.*
+
+![GET /api/dashboard/kpi en production](captures/swagger-prod-dashboard-kpi-200.png)
+
+*`GET /api/dashboard/kpi` : indicateurs réservés au personnel ; 401 sans connexion, 403 pour un client
+(tests `tests/staff.test.js`).*
+
+---
+
 ## 4. Veille sécurité — vulnérabilités traitées
 
 | Vulnérabilité (OWASP) | Mesure | Où |
@@ -345,7 +383,8 @@ stock 80 tranches ; Matcha (id 13) stock 15 ; Théière (id 24) 45,00 €, stock
 | Affectation de masse (API3) | Seuls les champs autorisés sont recopiés ; prix et client imposés par le serveur | `ArticleController.js:85-125`, `OrderController.js` |
 | Open redirect (front) | Redirection après connexion limitée aux chemins internes | `cafthereact/src/utils/redirect.js` |
 | Composants vulnérables (A06) | `npm audit` : faille **body-parser 2.2.2** (GHSA-v422-hmwv-36x6, déni de service) dans la dépendance d'Express → `npm audit fix` (2.3.0). `npm audit --omit=dev` : **0 vulnérabilité** en production | `package-lock.json` |
-| Mauvaise configuration (A05) | Helmet, CORS limité aux URL du front, `.env` hors Git, compte MySQL restreint | `app.js`, `create_user.sql` |
+| Mauvaise configuration (A05) | Helmet, CORS limité aux URL du front, `.env` hors Git, compte MySQL restreint ; clé JWT de production devinable remplacée par une clé aléatoire | `app.js`, `create_user.sql` |
+| Porte dérobée sur l'hébergement | `ty.php` (Tiny File Manager) trouvé à la racine du front en production et supprimé (§3 bis, n°9) | — |
 
 Sources : OWASP Top 10 (2021), OWASP API Security Top 10 (2023), CNIL (mots de passe), GitHub Advisory Database (`npm audit`).
 
@@ -375,6 +414,11 @@ Sources : OWASP Top 10 (2021), OWASP API Security Top 10 (2023), CNIL (mots de p
 11. **VIII.1 améliorations :** retirer Jest/Supertest et Swagger (faits) ; ajouter emails (confirmation, mot de passe
     oublié, lien d'activation), paiement réel, tests sur une vraie base dans une CI, cache.
 12. **VII.1 :** ajouter les tests automatisés (M13) et le jeu d'essai (§3) ; ajouter la **veille sécurité** (§4).
+13. **Fait le 05/10/2026 directement dans le .docx** (sauvegarde avant modification :
+    `Dossier Back-end examen octobre (avant ajouts 2026-10-05).docx`) : nouvelle partie **VI.4 « Vérification en
+    production du contrôle d'accès (Swagger) »** avec les deux captures (l'ancien VI.4 devient VI.5) et nouvelle
+    partie **VIII.2 « Difficultés rencontrées et erreurs corrigées »** (le bilan devient VIII.3), entrées du sommaire comprises.
+    Les points 1 à 12 ci-dessus restent à reporter.
 
 ---
 
