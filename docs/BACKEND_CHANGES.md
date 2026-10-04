@@ -418,7 +418,10 @@ Sources : OWASP Top 10 (2021), OWASP API Security Top 10 (2023), CNIL (mots de p
     `Dossier Back-end examen octobre (avant ajouts 2026-10-05).docx`) : nouvelle partie **VI.4 « Vérification en
     production du contrôle d'accès (Swagger) »** avec les deux captures (l'ancien VI.4 devient VI.5) et nouvelle
     partie **VIII.2 « Difficultés rencontrées et erreurs corrigées »** (le bilan devient VIII.3), entrées du sommaire comprises.
-    Les points 1 à 12 ci-dessus restent à reporter.
+    Les points 1 à 12 ci-dessus ont été reportés le même jour (sauvegarde : `... (avant corrections 1-12).docx`),
+    avec en plus : paragraphe de transparence sur l'usage d'un assistant IA (III), code 409 et tests automatisés
+    + tableau du jeu d'essai (VII.1), veille sécurité (VI.5), routes complètes en annexe IX, tableaux ajustés
+    à la largeur de la page.
 
 ---
 
