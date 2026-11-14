@@ -22,8 +22,8 @@ const getAllArticles = async (filters = {}) => {
         params.push(filters.category);
     }
     if (filters.search) {
-        conditions.push("(nom_produit LIKE ? OR description LIKE ?)");
-        params.push(`%${filters.search}%`, `%${filters.search}%`);
+        conditions.push("(nom_produit LIKE ? OR description LIKE ? OR sku LIKE ?)");
+        params.push(`%${filters.search}%`, `%${filters.search}%`, `%${filters.search}%`);
     }
     if (filters.minPrice !== undefined) {
         conditions.push("prix_ttc >= ?");
@@ -71,11 +71,11 @@ const getArticleById = async (id, includeInactive = false) => {
 const createArticle = async (article) => {
     const [result] = await db.query(
         `INSERT INTO produit
-            (nom_produit, description, categorie, type_vente, tva, prix_ttc, prix_HT, stock,
+            (sku, nom_produit, description, categorie, type_vente, tva, prix_ttc, prix_HT, stock,
              image, origine, produit_phare, nouveaute, produit_promotion, taux_remise)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-            article.nom_produit, article.description, article.categorie, article.type_vente,
+            article.sku, article.nom_produit, article.description, article.categorie, article.type_vente,
             article.tva, article.prix_ttc, article.prix_HT, article.stock, article.image,
             article.origine, article.produit_phare, article.nouveaute, article.produit_promotion,
             article.taux_remise,
@@ -88,12 +88,12 @@ const createArticle = async (article) => {
 const updateArticle = async (id, article) => {
     const [result] = await db.query(
         `UPDATE produit SET
-            nom_produit = ?, description = ?, categorie = ?, type_vente = ?, tva = ?, prix_ttc = ?,
+            sku = ?, nom_produit = ?, description = ?, categorie = ?, type_vente = ?, tva = ?, prix_ttc = ?,
             prix_HT = ?, stock = ?, image = ?, origine = ?, produit_phare = ?, nouveaute = ?,
             produit_promotion = ?, taux_remise = ?, active = ?
          WHERE code_produit = ?`,
         [
-            article.nom_produit, article.description, article.categorie, article.type_vente,
+            article.sku, article.nom_produit, article.description, article.categorie, article.type_vente,
             article.tva, article.prix_ttc, article.prix_HT, article.stock, article.image,
             article.origine, article.produit_phare, article.nouveaute, article.produit_promotion,
             article.taux_remise, article.active, id,

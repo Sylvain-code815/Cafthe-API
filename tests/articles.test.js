@@ -17,6 +17,7 @@ const ArticleModel = require("../article/models/ArticleModel");
 const { authHeader } = require("./helpers");
 
 const validArticle = {
+    sku: "THE-0031",
     nom_produit: "Thé Vert Sencha",
     description: "Thé vert japonais",
     categorie: "Thé",
@@ -155,6 +156,25 @@ describe("POST /api/articles (administrateur)", () => {
 
         expect(res.status).toBe(400);
         expect(res.body.errors.length).toBe(3);
+    });
+
+    test("400 si la référence SKU est absente ou mal formée (CDC 5.3.2)", async () => {
+        const { sku, ...withoutSku } = validArticle;
+        for (const body of [withoutSku, { ...validArticle, sku: "the-31" }]) {
+            const res = await request(app).post("/api/articles").set(authHeader("ROLE_ADMIN")).send(body);
+            expect(res.status).toBe(400);
+            expect(res.body.errors.join(" ")).toMatch(/sku/);
+        }
+        expect(ArticleModel.createArticle).not.toHaveBeenCalled();
+    });
+
+    test("409 si la référence SKU est déjà utilisée", async () => {
+        ArticleModel.createArticle.mockRejectedValue(Object.assign(new Error("Duplicate"), { code: "ER_DUP_ENTRY" }));
+
+        const res = await request(app).post("/api/articles").set(authHeader("ROLE_ADMIN")).send(validArticle);
+
+        expect(res.status).toBe(409);
+        expect(res.body.message).toMatch(/SKU/);
     });
 });
 

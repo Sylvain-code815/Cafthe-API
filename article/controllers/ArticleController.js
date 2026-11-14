@@ -14,6 +14,7 @@ const {
     isIntInRange,
     isNonEmptyString,
     isValidPrice,
+    isValidSku,
     normalizeText,
     validationError,
 } = require("../../utils/validators");
@@ -86,6 +87,7 @@ const buildArticle = (input) => {
     const errors = [];
     const categorie = findCategory(input.categorie);
 
+    if (!isValidSku(input.sku)) errors.push("sku obligatoire, format CAF-0001 (3 lettres, un tiret, 4 chiffres)");
     if (!isNonEmptyString(input.nom_produit, 50)) errors.push("nom_produit obligatoire (50 caractères max)");
     if (!isNonEmptyString(input.description, 255)) errors.push("description obligatoire (255 caractères max)");
     if (!categorie) errors.push(`categorie obligatoire (${CATEGORIES.join(", ")})`);
@@ -104,6 +106,7 @@ const buildArticle = (input) => {
     const tva = VAT_BY_CATEGORY[categorie];
     return {
         article: {
+            sku: input.sku.trim(),
             nom_produit: input.nom_produit.trim(),
             description: input.description.trim(),
             categorie,
@@ -230,6 +233,10 @@ const create = async (req, res) => {
             article: { code_produit: id, ...article },
         });
     } catch (error) {
+        // La référence SKU est unique (contrainte de la base)
+        if (error.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({ message: "Cette référence SKU est déjà utilisée" });
+        }
         console.error("Erreur de création de l'article", error.message);
         res.status(500).json({ message: "Erreur de création de l'article" });
     }
@@ -270,6 +277,9 @@ const update = async (req, res) => {
             article: { code_produit: articleId, ...article },
         });
     } catch (error) {
+        if (error.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({ message: "Cette référence SKU est déjà utilisée" });
+        }
         console.error("Erreur de mise à jour de l'article", error.message);
         res.status(500).json({ message: "Erreur de mise à jour de l'article" });
     }

@@ -6,7 +6,7 @@
 --   mysql -u root -p < database/cafthe.sql
 --   mysql -u root -p < database/create_user.sql
 -- Base déjà en service : NE PAS utiliser ce fichier (il supprime la base),
--- appliquer database/migrations/001_exam_features.sql
+-- appliquer les migrations de database/migrations/ dans l'ordre (001, 002...)
 -- =====================================================================
 
 DROP DATABASE IF EXISTS cafthe;
@@ -73,6 +73,7 @@ CREATE TABLE adresse (
 -- ---------------------------------------------------------------------
 CREATE TABLE produit (
   code_produit INT NOT NULL AUTO_INCREMENT,
+  sku VARCHAR(20) NOT NULL,
   nom_produit VARCHAR(50) NOT NULL,
   description VARCHAR(255) NOT NULL,
   categorie VARCHAR(50) NOT NULL,
@@ -89,6 +90,7 @@ CREATE TABLE produit (
   taux_remise INT NOT NULL DEFAULT 0,
   active TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (code_produit),
+  UNIQUE KEY uq_produit_sku (sku),
   CONSTRAINT chk_produit_stock CHECK (stock >= 0),
   CONSTRAINT chk_produit_prix CHECK (prix_HT >= 0 AND prix_ttc >= 0),
   CONSTRAINT chk_produit_remise CHECK (taux_remise BETWEEN 0 AND 90)
@@ -167,6 +169,25 @@ CREATE TABLE livraison (
   CONSTRAINT livraison_ibfk_1 FOREIGN KEY (num_commande) REFERENCES commande (num_commande) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ---------------------------------------------------------------------
+-- PASSWORD_RESET (mot de passe oublié, clients et personnel)
+-- Jeton valable 1 heure, à usage unique ; seule son empreinte SHA-256 est stockée.
+-- account_type = 'client' ou 'employee' : account_id pointe vers client ou employe
+-- ---------------------------------------------------------------------
+CREATE TABLE password_reset (
+  id INT NOT NULL AUTO_INCREMENT,
+  account_type VARCHAR(10) NOT NULL,
+  account_id INT NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_password_reset_token (token_hash),
+  KEY idx_password_reset_account (account_type, account_id),
+  CONSTRAINT chk_password_reset_type CHECK (account_type IN ('client', 'employee'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- =====================================================================
 -- JEU DE DONNÉES DE TEST
 -- Mot de passe de TOUS les comptes de test : CafThe#2026test
@@ -190,37 +211,37 @@ INSERT INTO adresse (id_adresse, code_client, titre, rue, cp, ville, pays) VALUE
 (4, 3, 'Domicile', '12 Boulevard de la Mer', '13008', 'Marseille', 'France');
 
 -- Produits vendus au poids (Vrac, Grain, Dosette...) : prix_ttc et stock pour 100 g
-INSERT INTO produit (code_produit, nom_produit, description, categorie, type_vente, tva, prix_ttc, prix_HT, stock, image, origine, produit_phare, nouveaute, produit_promotion, taux_remise) VALUES
-(1, 'Café Arabica Bio', 'Un café doux et fruité, 100% Arabica.', 'Café', 'Boite', 5.50, 15.90, 15.07, 100, 'produit-cafe-boite.webp', 'Éthiopie', 1, 0, 0, 0),
-(2, 'Robusta Intense', 'Un café corsé pour un réveil tonique.', 'Café', 'Boite', 5.50, 12.50, 11.85, 50, 'produit-cafe-onsale-boite.webp', 'Vietnam', 0, 0, 1, 50),
-(3, 'Thé Vert Sencha', 'Thé vert japonais traditionnel aux notes végétales.', 'Thé', 'Boite', 5.50, 18.00, 17.06, 80, 'produit-the-boite.webp', 'Japon', 1, 0, 0, 0),
-(4, 'Earl Grey Royal', 'Thé noir aromatisé à la bergamote.', 'Thé', 'Sachet', 5.50, 14.00, 13.27, 120, 'produit-the-sachets.webp', 'Inde', 0, 0, 0, 0),
-(5, 'Mug CafThé', 'Mug en céramique avec logo CafThé.', 'Accessoire', 'Unité', 20.00, 9.90, 8.25, 200, 'produit-accessoire-onsale.webp', 'France', 0, 1, 1, 20),
-(6, 'Thé Noir Darjeeling', 'Le champagne des thés noirs, aux notes muscatées.', 'Thé', 'Vrac', 5.50, 18.50, 17.54, 50, 'produit-the-pochette.webp', 'Inde', 1, 0, 0, 0),
-(7, 'Thé Blanc Pai Mu Tan', 'Thé blanc délicat aux bourgeons duveteux.', 'Thé', 'Boite', 5.50, 22.00, 20.85, 30, 'produit-the-onsale-boite.webp', 'Chine', 0, 0, 1, 20),
-(8, 'Rooibos Vanille', 'Infusion sans théine, douce et parfumée à la vanille.', 'Thé', 'Vrac', 5.50, 14.00, 13.27, 80, 'produit-the-pochette.webp', 'Afrique du Sud', 0, 0, 0, 0),
-(9, 'Infusion Nuit Calme', 'Mélange de mélisse, verveine et tilleul.', 'Thé', 'Boite', 5.50, 12.50, 11.85, 60, 'produit-the-boite.webp', 'France', 0, 0, 0, 0),
-(10, 'Oolong Milky', 'Un thé Oolong aux notes naturelles de lait et de beurre.', 'Thé', 'Vrac', 5.50, 24.90, 23.60, 25, 'produit-the-pochette.webp', 'Taïwan', 1, 0, 0, 0),
-(11, 'Thé Vert Jasmin', 'Thé vert traditionnel parfumé aux fleurs de jasmin.', 'Thé', 'Sachet', 5.50, 13.90, 13.18, 100, 'produit-the-sachets-onsale.webp', 'Chine', 0, 0, 1, 20),
-(12, 'Thé Noir Ceylan', 'Un grand classique corsé, idéal pour le matin.', 'Thé', 'Vrac', 5.50, 11.00, 10.43, 150, 'produit-the-pochette.webp', 'Sri Lanka', 0, 0, 0, 0),
-(13, 'Matcha Cérémonie', 'Poudre de thé vert impérial pour la cérémonie traditionnelle.', 'Thé', 'Boite', 5.50, 35.00, 33.18, 15, 'produit-the-boite.webp', 'Japon', 1, 1, 0, 0),
-(14, 'Infusion Fruits Rouges', 'Explosion de saveurs : fraise, framboise, mûre.', 'Thé', 'Vrac', 5.50, 10.50, 9.95, 90, 'produit-the-onsale-pochette.webp', 'Allemagne', 0, 0, 1, 20),
-(15, 'Lapsang Souchong', 'Thé noir fumé au bois de pin, goût unique.', 'Thé', 'Vrac', 5.50, 16.00, 15.17, 40, 'produit-the-pochette.webp', 'Chine', 0, 0, 0, 0),
-(16, 'Moka Éthiopie', 'Café sauvage aux notes florales et d''agrumes.', 'Café', 'Grain', 5.50, 19.90, 18.86, 60, 'produit-cafe-grain.webp', 'Éthiopie', 1, 0, 0, 0),
-(17, 'Colombie Supremo', 'Équilibré et doux, avec une belle acidité.', 'Café', 'Dosette', 5.50, 15.50, 14.69, 80, 'produit-cafe-dosette.webp', 'Colombie', 0, 0, 0, 0),
-(18, 'Brésil Santos', 'Café rond aux notes de chocolat et de noisette.', 'Café', 'Grain', 5.50, 13.00, 12.32, 120, 'produit-cafe-onsale-grain.webp', 'Brésil', 0, 0, 1, 20),
-(19, 'Décaféiné Eau', 'Décaféination naturelle à l''eau, sans solvant.', 'Café', 'Dosette', 5.50, 16.50, 15.64, 50, 'produit-cafe-dosette.webp', 'Mexique', 0, 0, 0, 0),
-(20, 'Blend Maison', 'Notre assemblage signature pour un espresso parfait.', 'Café', 'Grain', 5.50, 14.90, 14.12, 200, 'produit-cafe-grain.webp', 'Assemblage', 1, 0, 0, 0),
-(21, 'Costa Rica Tarrazu', 'Café vif et complet, cultivé en haute altitude.', 'Café', 'Boite', 5.50, 17.90, 16.97, 45, 'produit-cafe-boite.webp', 'Costa Rica', 0, 0, 0, 0),
-(22, 'Guatemala Antigua', 'Notes épicées et corps puissant.', 'Café', 'Grain', 5.50, 18.20, 17.25, 40, 'produit-cafe-grain.webp', 'Guatemala', 0, 1, 0, 0),
-(23, 'Sumatra Mandheling', 'Café racé, terreux et peu acide.', 'Café', 'Dosette', 5.50, 21.00, 19.91, 30, 'produit-cafe-onsale-dosette.webp', 'Indonésie', 0, 0, 1, 20),
-(24, 'Théière Fonte 0.8L', 'Théière traditionnelle japonaise noire.', 'Accessoire', 'Unité', 20.00, 45.00, 37.50, 10, 'produit-accessoire.webp', 'Japon', 1, 0, 0, 0),
-(25, 'Boule à Thé Inox', 'Infuseur classique avec chaînette.', 'Accessoire', 'Unité', 20.00, 4.50, 3.75, 200, 'produit-accessoire.webp', 'Chine', 0, 0, 0, 0),
-(26, 'Filtres Papier x100', 'Filtres biodégradables pour thé en vrac.', 'Accessoire', 'Boite', 20.00, 6.90, 5.75, 150, 'produit-accessoire.webp', 'Allemagne', 0, 0, 0, 0),
-(27, 'Coffret Découverte', 'Assortiment de 6 thés et cafés.', 'Accessoire', 'Boite', 20.00, 29.90, 24.92, 25, 'produit-accessoire-onsale.webp', 'Monde', 1, 0, 1, 20),
-(28, 'Cuillère Doseuse', 'Cuillère en acier doré pour doser le thé.', 'Accessoire', 'Unité', 20.00, 8.00, 6.67, 100, 'produit-accessoire.webp', 'Chine', 0, 0, 0, 0),
-(29, 'Mousseur à Lait', 'Pour réaliser des cappuccinos onctueux.', 'Accessoire', 'Unité', 20.00, 12.90, 10.75, 40, 'produit-accessoire-onsale.webp', 'Chine', 0, 1, 1, 20),
-(30, 'Tasse Double Paroi', 'Verre borosilicate pour garder la chaleur.', 'Accessoire', 'Unité', 20.00, 11.50, 9.58, 60, 'produit-accessoire.webp', 'Chine', 0, 0, 0, 0);
+INSERT INTO produit (code_produit, sku, nom_produit, description, categorie, type_vente, tva, prix_ttc, prix_HT, stock, image, origine, produit_phare, nouveaute, produit_promotion, taux_remise) VALUES
+(1, 'CAF-0001', 'Café Arabica Bio', 'Un café doux et fruité, 100% Arabica.', 'Café', 'Boite', 5.50, 15.90, 15.07, 100, 'produit-cafe-boite.webp', 'Éthiopie', 1, 0, 0, 0),
+(2, 'CAF-0002', 'Robusta Intense', 'Un café corsé pour un réveil tonique.', 'Café', 'Boite', 5.50, 12.50, 11.85, 50, 'produit-cafe-onsale-boite.webp', 'Vietnam', 0, 0, 1, 50),
+(3, 'THE-0003', 'Thé Vert Sencha', 'Thé vert japonais traditionnel aux notes végétales.', 'Thé', 'Boite', 5.50, 18.00, 17.06, 80, 'produit-the-boite.webp', 'Japon', 1, 0, 0, 0),
+(4, 'THE-0004', 'Earl Grey Royal', 'Thé noir aromatisé à la bergamote.', 'Thé', 'Sachet', 5.50, 14.00, 13.27, 120, 'produit-the-sachets.webp', 'Inde', 0, 0, 0, 0),
+(5, 'ACC-0005', 'Mug CafThé', 'Mug en céramique avec logo CafThé.', 'Accessoire', 'Unité', 20.00, 9.90, 8.25, 200, 'produit-accessoire-onsale.webp', 'France', 0, 1, 1, 20),
+(6, 'THE-0006', 'Thé Noir Darjeeling', 'Le champagne des thés noirs, aux notes muscatées.', 'Thé', 'Vrac', 5.50, 18.50, 17.54, 50, 'produit-the-pochette.webp', 'Inde', 1, 0, 0, 0),
+(7, 'THE-0007', 'Thé Blanc Pai Mu Tan', 'Thé blanc délicat aux bourgeons duveteux.', 'Thé', 'Boite', 5.50, 22.00, 20.85, 30, 'produit-the-onsale-boite.webp', 'Chine', 0, 0, 1, 20),
+(8, 'THE-0008', 'Rooibos Vanille', 'Infusion sans théine, douce et parfumée à la vanille.', 'Thé', 'Vrac', 5.50, 14.00, 13.27, 80, 'produit-the-pochette.webp', 'Afrique du Sud', 0, 0, 0, 0),
+(9, 'THE-0009', 'Infusion Nuit Calme', 'Mélange de mélisse, verveine et tilleul.', 'Thé', 'Boite', 5.50, 12.50, 11.85, 60, 'produit-the-boite.webp', 'France', 0, 0, 0, 0),
+(10, 'THE-0010', 'Oolong Milky', 'Un thé Oolong aux notes naturelles de lait et de beurre.', 'Thé', 'Vrac', 5.50, 24.90, 23.60, 25, 'produit-the-pochette.webp', 'Taïwan', 1, 0, 0, 0),
+(11, 'THE-0011', 'Thé Vert Jasmin', 'Thé vert traditionnel parfumé aux fleurs de jasmin.', 'Thé', 'Sachet', 5.50, 13.90, 13.18, 100, 'produit-the-sachets-onsale.webp', 'Chine', 0, 0, 1, 20),
+(12, 'THE-0012', 'Thé Noir Ceylan', 'Un grand classique corsé, idéal pour le matin.', 'Thé', 'Vrac', 5.50, 11.00, 10.43, 150, 'produit-the-pochette.webp', 'Sri Lanka', 0, 0, 0, 0),
+(13, 'THE-0013', 'Matcha Cérémonie', 'Poudre de thé vert impérial pour la cérémonie traditionnelle.', 'Thé', 'Boite', 5.50, 35.00, 33.18, 15, 'produit-the-boite.webp', 'Japon', 1, 1, 0, 0),
+(14, 'THE-0014', 'Infusion Fruits Rouges', 'Explosion de saveurs : fraise, framboise, mûre.', 'Thé', 'Vrac', 5.50, 10.50, 9.95, 90, 'produit-the-onsale-pochette.webp', 'Allemagne', 0, 0, 1, 20),
+(15, 'THE-0015', 'Lapsang Souchong', 'Thé noir fumé au bois de pin, goût unique.', 'Thé', 'Vrac', 5.50, 16.00, 15.17, 40, 'produit-the-pochette.webp', 'Chine', 0, 0, 0, 0),
+(16, 'CAF-0016', 'Moka Éthiopie', 'Café sauvage aux notes florales et d''agrumes.', 'Café', 'Grain', 5.50, 19.90, 18.86, 60, 'produit-cafe-grain.webp', 'Éthiopie', 1, 0, 0, 0),
+(17, 'CAF-0017', 'Colombie Supremo', 'Équilibré et doux, avec une belle acidité.', 'Café', 'Dosette', 5.50, 15.50, 14.69, 80, 'produit-cafe-dosette.webp', 'Colombie', 0, 0, 0, 0),
+(18, 'CAF-0018', 'Brésil Santos', 'Café rond aux notes de chocolat et de noisette.', 'Café', 'Grain', 5.50, 13.00, 12.32, 120, 'produit-cafe-onsale-grain.webp', 'Brésil', 0, 0, 1, 20),
+(19, 'CAF-0019', 'Décaféiné Eau', 'Décaféination naturelle à l''eau, sans solvant.', 'Café', 'Dosette', 5.50, 16.50, 15.64, 50, 'produit-cafe-dosette.webp', 'Mexique', 0, 0, 0, 0),
+(20, 'CAF-0020', 'Blend Maison', 'Notre assemblage signature pour un espresso parfait.', 'Café', 'Grain', 5.50, 14.90, 14.12, 200, 'produit-cafe-grain.webp', 'Assemblage', 1, 0, 0, 0),
+(21, 'CAF-0021', 'Costa Rica Tarrazu', 'Café vif et complet, cultivé en haute altitude.', 'Café', 'Boite', 5.50, 17.90, 16.97, 45, 'produit-cafe-boite.webp', 'Costa Rica', 0, 0, 0, 0),
+(22, 'CAF-0022', 'Guatemala Antigua', 'Notes épicées et corps puissant.', 'Café', 'Grain', 5.50, 18.20, 17.25, 40, 'produit-cafe-grain.webp', 'Guatemala', 0, 1, 0, 0),
+(23, 'CAF-0023', 'Sumatra Mandheling', 'Café racé, terreux et peu acide.', 'Café', 'Dosette', 5.50, 21.00, 19.91, 30, 'produit-cafe-onsale-dosette.webp', 'Indonésie', 0, 0, 1, 20),
+(24, 'ACC-0024', 'Théière Fonte 0.8L', 'Théière traditionnelle japonaise noire.', 'Accessoire', 'Unité', 20.00, 45.00, 37.50, 10, 'produit-accessoire.webp', 'Japon', 1, 0, 0, 0),
+(25, 'ACC-0025', 'Boule à Thé Inox', 'Infuseur classique avec chaînette.', 'Accessoire', 'Unité', 20.00, 4.50, 3.75, 200, 'produit-accessoire.webp', 'Chine', 0, 0, 0, 0),
+(26, 'ACC-0026', 'Filtres Papier x100', 'Filtres biodégradables pour thé en vrac.', 'Accessoire', 'Boite', 20.00, 6.90, 5.75, 150, 'produit-accessoire.webp', 'Allemagne', 0, 0, 0, 0),
+(27, 'ACC-0027', 'Coffret Découverte', 'Assortiment de 6 thés et cafés.', 'Accessoire', 'Boite', 20.00, 29.90, 24.92, 25, 'produit-accessoire-onsale.webp', 'Monde', 1, 0, 1, 20),
+(28, 'ACC-0028', 'Cuillère Doseuse', 'Cuillère en acier doré pour doser le thé.', 'Accessoire', 'Unité', 20.00, 8.00, 6.67, 100, 'produit-accessoire.webp', 'Chine', 0, 0, 0, 0),
+(29, 'ACC-0029', 'Mousseur à Lait', 'Pour réaliser des cappuccinos onctueux.', 'Accessoire', 'Unité', 20.00, 12.90, 10.75, 40, 'produit-accessoire-onsale.webp', 'Chine', 0, 1, 1, 20),
+(30, 'ACC-0030', 'Tasse Double Paroi', 'Verre borosilicate pour garder la chaleur.', 'Accessoire', 'Unité', 20.00, 11.50, 9.58, 60, 'produit-accessoire.webp', 'Chine', 0, 0, 0, 0);
 
 -- Commande 1 : web, livrée (standard 4,99 EUR) / Commande 2 : web, en préparation, facturée au bureau (express 9,99 EUR)
 -- Commande 3 : vente en caisse pour la cliente inscrite en boutique
