@@ -79,7 +79,11 @@ const validationError = (res, errors) => {
     return res.status(400).json({ message: errors.join(". "), errors });
 };
 
+// Référence SKU du produit (CDC 5.3.2) : 3 lettres de catégorie + 4 chiffres, ex. CAF-0001
+const isValidSku = (value) => typeof value === "string" && /^[A-Z]{3}-\d{4}$/.test(value.trim());
+
 module.exports = {
+    isValidSku,
     parseId,
     isIntInRange,
     isValidId,

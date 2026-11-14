@@ -46,8 +46,8 @@ mêmes formats de réponse) et ajouter ce qui manque pour le CDC et le référen
 email, export CSV/Excel, alertes automatiques (stock, commandes, objectifs), sauvegarde automatique quotidienne.
 
 **Hors périmètre, à assumer à l'oral :** paiement réel (le mode est enregistré, le paiement est simulé ;
-les données de carte ne sont jamais envoyées à l'API), emails (confirmation de commande, mot de passe
-oublié, lien d'activation : nécessitent un service SMTP), gestion des campagnes de `promotion`
+les données de carte ne sont jamais envoyées à l'API), email de confirmation de commande
+(le mot de passe oublié par email a été ajouté en novembre 2026, fiche M18), gestion des campagnes de `promotion`
 (la remise produit `taux_remise` est, elle, appliquée).
 
 ---
@@ -297,6 +297,65 @@ Dépôt `cafthereact`, branche `feature/api-orders`. Tous les appels authentifi�
 | `/api/articles/phares` → `/phare` | La page Produits phares recevait une 404 | `components/ProductList/ProductList.jsx:42` |
 
 `npm run build` passe ; le nombre d'alertes ESLint du projet baisse (20 → 16, aucune nouvelle règle enfreinte).
+
+---
+
+### M18 — Référence SKU et mot de passe oublié par email (novembre 2026, après le dépôt du dossier)
+
+Ajouté après la relecture du cahier des charges, en même temps que le dashboard PHP (dépôt `cafthe-dashboard`)
+et les manques du site React (fiche M17 complétée). Code écrit avec l'aide de l'IA.
+
+| Modification | Pourquoi | Où |
+|---|---|---|
+| Colonne `produit.sku` obligatoire et unique, remplie pour les produits existants (`CAF-0001`, `THE-0003`, `ACC-0005`) | CDC 5.3.2 : « Référence SKU, code unique d'identification produit, obligatoire ». `code_produit` est un numéro technique auto-incrémenté, pas une référence commerciale | `database/migrations/002_sku_password_reset.sql`, `database/cafthe.sql` (table `produit`) |
+| La migration ajoute d'abord la colonne facultative, la remplit, puis la rend `NOT NULL` + `UNIQUE` | Une colonne obligatoire ne peut pas être ajoutée d'un coup à une table qui contient déjà des lignes | `database/migrations/002_sku_password_reset.sql` |
+| SKU validé (`isValidSku`, 3 lettres + tiret + 4 chiffres), 409 si déjà utilisé, recherche du catalogue sur le SKU | Même règle côté API et dashboard ; la contrainte `UNIQUE` de la base tranche en cas de doublon | `utils/validators.js:83`, `article/controllers/ArticleController.js:90`, `:237`, `:280`, `article/models/ArticleModel.js` |
+| Table `password_reset` : un jeton par demande, empreinte SHA-256 seulement, valable 1 heure, usage unique | CDC 5.1 « récupération de mot de passe par email avec lien sécurisé temporaire ». Si la table fuit, les empreintes ne permettent pas de changer un mot de passe | `database/migrations/002_sku_password_reset.sql`, `password-reset/models/PasswordResetModel.js` |
+| `POST /api/clients/forgot-password` : réponse identique que l'email existe ou non, lien envoyé par email | Ne pas révéler quels emails ont un compte (même principe que l'empreinte factice de la connexion) | `client/controllers/ClientController.js:379`, `client/routes/ClientRouter.js:54` |
+| `POST /api/clients/reset-password` : jeton vérifié, mot de passe fort exigé, haché avec Bcrypt, jeton marqué utilisé | Un lien ne sert qu'une fois ; une nouvelle demande annule les liens précédents | `client/controllers/ClientController.js:411` |
+| Envoi des emails avec nodemailer : `sendmail` du serveur Plesk en production, affichage dans la console en développement | Pas d'identifiants SMTP à stocker ; en local on lit le lien dans la console | `utils/mailer.js`, `.env.example` |
+| Les deux routes sont limitées (10 essais / 15 min) | Éviter qu'on inonde une boîte mail ou qu'on teste des jetons en masse | `client/routes/ClientRouter.js:54`, `:59` |
+| nodemailer mis à jour en 10.5.0, `body-parser` et `ip-address` corrigés par `npm audit fix` | `npm audit` signalait des failles dans la version 7 de nodemailer (injection d'en-têtes, déni de service) | `package.json`, `package-lock.json` |
+
+Tests : 121 tests (110 avant) ; nouveaux fichiers `tests/passwordReset.test.js` (7 tests) et tests SKU dans
+`tests/articles.test.js` et `tests/validators.test.js`. Vérifié aussi sur la base locale : demande de lien,
+lien reçu dans la console, nouveau mot de passe accepté, deuxième utilisation du lien refusée (« Lien invalide ou expiré »),
+connexion avec le nouveau mot de passe.
+
+**Mise en production :** sauvegarder la base, appliquer la migration 002 **avant** de déployer l'API et le dashboard,
+compléter le `.env` du serveur (`MAIL_TRANSPORT=sendmail`, `MAIL_FROM`, `RESET_PASSWORD_URL`), `npm ci --omit=dev`, redémarrer.
+
+---
+
+### M19 — Dashboard vendeur PHP : tests, mot de passe oublié, SKU, manuel (novembre 2026)
+
+Dépôt `cafthe-dashboard`, branche `feat/tests-reset-sku-manual`. Code écrit avec l'aide de l'IA.
+
+| Modification | Pourquoi | Où (`cafthe-dashboard/...`) |
+|---|---|---|
+| SKU dans la liste, la recherche et le formulaire (référence suivante proposée, doublon refusé) | CDC 5.3.2 | `src/Models/Product.php`, `src/Controllers/ProductController.php`, `views/products/` |
+| Mot de passe oublié du personnel : lien valable 1 heure, usage unique, même réponse pour un email inconnu, 3 demandes max par compte sur 15 min | CDC 5.1 | `src/Models/PasswordReset.php`, `src/Core/Mailer.php`, `src/Controllers/AuthController.php`, `views/auth/forgot.php`, `views/auth/reset.php` |
+| Règle de mot de passe fort partagée (un seul endroit) | Elle était écrite deux fois (vendeurs et profil) | `src/Models/Employee.php` |
+| 76 tests PHPUnit : unitaires (prix, TVA, SKU, mot de passe, jetons) et d'intégration sur une base `cafthe_test` (statuts, vente en caisse et stock, SKU unique, désactivation, jetons, KPI) | CDC 8.1 « tests unitaires et d'intégration (pour le dashboard) » | `tests/Unit/`, `tests/Integration/`, `phpunit.xml`, `tests/create_test_db.php` |
+| Manuel d'utilisation vendeur avec 12 captures | CDC 8.1 | `docs/SELLER_MANUAL.md`, `docs/images/` |
+
+### M20 — Site React : manques du cahier des charges (novembre 2026)
+
+Dépôt `cafthereact`, branche `feat/cdc-missing-features`. Code écrit avec l'aide de l'IA.
+
+| Modification | CDC | Où (`cafthereact/src/...`) |
+|---|---|---|
+| Confirmation avant de retirer un article ou de vider le panier | 4.3 | `components/Modal/ConfirmDialog.jsx`, `pages/Cart/Cart.jsx` |
+| Mini-panier accessible depuis toutes les pages | 4.3 | `components/MiniCart/` |
+| Estimation des frais de livraison dans le panier (règles regroupées dans un seul fichier, identiques à l'API) | 4.3 | `utils/shipping.js`, `pages/Cart/Cart.jsx` |
+| Nom du transporteur et délai pour chaque mode (libellés : Colissimo, Chronopost, La Poste) | 4.4 | `utils/shipping.js`, `components/Order/Livraison.jsx` |
+| Aperçu rapide d'un produit sans quitter la liste | 4.2.1 | `components/QuickView/` |
+| « Commander à nouveau » une commande passée (prix actuels, produits indisponibles ignorés, quantités limitées au stock) | 4.5 | `utils/reorder.js`, `components/account/OrdersTab.jsx` |
+| Mot de passe oublié relié à l'API + page de nouveau mot de passe | 4.5 | `pages/ForgotPassword.jsx`, `pages/ResetPassword.jsx` |
+| Référence SKU affichée sur la fiche produit | 5.3.2 | `pages/ProductDetails/` |
+| Correction : l'ajout rapide d'un produit en vrac se faisait sans poids et l'API refusait la commande | | composants du catalogue |
+
+25 tests Vitest passent, `npm run build` passe, aucune nouvelle alerte ESLint.
 
 ---
 

@@ -98,6 +98,7 @@ components:
       type: object
       properties:
         code_produit: { type: integer, example: 3 }
+        sku: { type: string, example: THE-0003, description: "Unique product reference (3 letters, dash, 4 digits)" }
         nom_produit: { type: string, example: Thé Vert Sencha }
         description: { type: string }
         categorie: { type: string, enum: [Thé, Café, Accessoire] }
@@ -126,8 +127,9 @@ components:
           items: { $ref: "#/components/schemas/Article" }
     ArticleInput:
       type: object
-      required: [nom_produit, description, categorie, type_vente, prix_HT, origine]
+      required: [sku, nom_produit, description, categorie, type_vente, prix_HT, origine]
       properties:
+        sku: { type: string, pattern: '^[A-Z]{3}-\d{4}$', example: THE-0031 }
         nom_produit: { type: string, maxLength: 50 }
         description: { type: string, maxLength: 255 }
         categorie: { type: string, enum: [Thé, Café, Accessoire] }
@@ -368,6 +370,44 @@ paths:
       responses:
         "200": { description: Account activated, auth cookie set }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/clients/forgot-password:
+    post:
+      tags: [Clients]
+      summary: Send a password reset link by email (valid 1 hour, single use)
+      description: Always answers the same message, whether the email has an account or not.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, example: marie.dupont@email.com }
+      responses:
+        "200": { description: "Neutral message (no account enumeration)" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/clients/reset-password:
+    post:
+      tags: [Clients]
+      summary: Set a new password with the token received by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, mdp]
+              properties:
+                token: { type: string, pattern: "^[a-f0-9]{64}$" }
+                mdp: { $ref: "#/components/schemas/Password" }
+      responses:
+        "200": { description: Password changed }
+        "400": { description: "Invalid, expired or already used token, or weak password" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /api/clients/login:

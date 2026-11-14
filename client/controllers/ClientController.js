@@ -12,6 +12,13 @@ const {
 } = require("../models/ClientModel");
 const { getAdressesByClient } = require("../../adresse/models/AdresseModel");
 const { getOrdersByClient } = require("../../order/models/OrderModel");
+const {
+    RESET_TOKEN_MINUTES,
+    createResetToken,
+    findValidToken,
+    markTokenUsed,
+} = require("../../password-reset/models/PasswordResetModel");
+const { sendMail } = require("../../utils/mailer");
 const { ROLES } = require("../../config/constants");
 const { CLIENT_SESSION_SECONDS, sendAuthCookie, clearAuthCookie } = require("../../utils/authToken");
 const { PASSWORD_RULE, hashPassword, verifyPassword } = require("../../utils/password");
@@ -357,6 +364,76 @@ const getClientDetails = async (req, res) => {
     }
 };
 
+// Message identique que le compte existe ou non : on ne révèle pas quels emails sont inscrits
+const FORGOT_PASSWORD_MESSAGE = "Si un compte est associé à cet email, vous recevrez un mail pour changer votre mot de passe";
+
+// Adresse de la page du front qui reçoit le jeton (HashRouter : /#/reset-password)
+const resetPageUrl = () => {
+    const front = (process.env.FRONTEND_URL || "http://localhost:5173").split(",")[0].trim();
+    return process.env.RESET_PASSWORD_URL || `${front}/#/reset-password`;
+};
+
+// Mot de passe oublié : envoie par email un lien temporaire (1 heure, usage unique)
+// Fonctionne aussi pour une fiche créée en boutique sans mot de passe :
+// recevoir l'email prouve que le client possède bien cette adresse
+const forgotPassword = async (req, res) => {
+    const email = normalizeEmail(req.body?.email);
+    if (!isValidEmail(email)) {
+        return res.status(400).json({ message: "L'email est invalide" });
+    }
+
+    try {
+        const clients = await findClientByEmail(email);
+        const client = clients[0];
+
+        if (client) {
+            const token = await createResetToken("client", client.code_client);
+            await sendMail({
+                to: client.email,
+                subject: "CafThé - Réinitialisation de votre mot de passe",
+                text: `Bonjour ${client.prenom_client},\n\n`
+                    + "Vous avez demandé à changer votre mot de passe. Cliquez sur ce lien pour en choisir un nouveau :\n"
+                    + `${resetPageUrl()}?token=${token}\n\n`
+                    + `Ce lien est valable ${RESET_TOKEN_MINUTES} minutes et ne peut servir qu'une fois.\n`
+                    + "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : votre mot de passe ne change pas.\n\n"
+                    + "L'équipe CafThé",
+            });
+        }
+
+        res.json({ message: FORGOT_PASSWORD_MESSAGE });
+    } catch (error) {
+        console.error("Erreur mot de passe oublié", error.message);
+        res.status(500).json({ message: "Erreur lors de l'envoi de l'email, réessayez plus tard" });
+    }
+};
+
+// Réinitialisation : vérifie le jeton reçu par email puis enregistre le nouveau mot de passe
+const resetPassword = async (req, res) => {
+    const { token, mdp } = req.body || {};
+
+    if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)) {
+        return res.status(400).json({ message: "Lien invalide ou expiré" });
+    }
+    if (!isStrongPassword(mdp)) {
+        return res.status(400).json({ message: PASSWORD_RULE });
+    }
+
+    try {
+        const reset = await findValidToken("client", token);
+        if (!reset) {
+            return res.status(400).json({ message: "Lien invalide ou expiré" });
+        }
+
+        await updatePassword(reset.account_id, await hashPassword(mdp));
+        await markTokenUsed(reset.id);
+
+        res.json({ message: "Votre mot de passe a été modifié, vous pouvez vous connecter" });
+    } catch (error) {
+        console.error("Erreur réinitialisation mot de passe", error.message);
+        res.status(500).json({ message: "Erreur lors de la réinitialisation du mot de passe" });
+    }
+};
+
 module.exports = {
     register,
     activate,
@@ -365,6 +442,8 @@ module.exports = {
     getMe,
     updateProfile,
     changePassword,
+    forgotPassword,
+    resetPassword,
     search,
     createInStore,
     getClientDetails,

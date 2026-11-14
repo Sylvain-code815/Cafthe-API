@@ -9,6 +9,8 @@ const {
     logout,
     updateProfile,
     changePassword,
+    forgotPassword,
+    resetPassword,
     search,
     createInStore,
     getClientDetails,
@@ -45,6 +47,16 @@ router.post("/activate", authLimiter, activate);
 // Body : { email, mdp }
 // Dépose le token JWT dans un cookie HttpOnly
 router.post("/login", authLimiter, login);
+
+// Mot de passe oublié : envoie un lien de réinitialisation par email
+// POST /api/clients/forgot-password
+// Body : { email }
+router.post("/forgot-password", authLimiter, forgotPassword);
+
+// Nouveau mot de passe à partir du lien reçu par email
+// POST /api/clients/reset-password
+// Body : { token, mdp }
+router.post("/reset-password", authLimiter, resetPassword);
 
 // Modification du profil
 // PUT /api/clients/me

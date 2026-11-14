@@ -6,6 +6,7 @@ const {
     isStrongPassword,
     isValidPhone,
     isValidPrice,
+    isValidSku,
 } = require("../utils/validators");
 
 describe("parseId", () => {
@@ -71,5 +72,17 @@ describe("normalizeText (catégories du front)", () => {
     test("ignore accents et majuscules", () => {
         expect(normalizeText("Thé")).toBe(normalizeText("the"));
         expect(normalizeText("Café")).toBe(normalizeText("Cafe"));
+    });
+});
+
+describe("isValidSku (référence produit, CDC 5.3.2)", () => {
+    test("accepte 3 lettres majuscules, un tiret et 4 chiffres", () => {
+        expect(isValidSku("CAF-0001")).toBe(true);
+        expect(isValidSku("ACC-0030")).toBe(true);
+    });
+    test("refuse les autres formats", () => {
+        for (const value of ["caf-0001", "CAF0001", "CAF-1", "CAFE-0001", "", null, 12]) {
+            expect(isValidSku(value)).toBe(false);
+        }
     });
 });
