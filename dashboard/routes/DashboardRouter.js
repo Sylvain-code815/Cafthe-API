@@ -1,5 +1,4 @@
-// Router Tableau de bord
-// chemin : /api/dashboard
+// Router Tableau de bord : /api/dashboard
 
 const express = require("express");
 const { getKpi } = require("../controllers/DashboardController");

@@ -1,8 +1,6 @@
 const db = require("../../db");
 
-// Indicateurs clés de performance du tableau de bord (CDC 5.6)
-// Les calculs (sommes, moyennes, regroupements) sont faits par MySQL :
-// seules les données agrégées transitent entre la BDD et l'API
+// Indicateurs clés du tableau de bord, calculés par MySQL (agrégats)
 
 // Chiffre d'affaires du jour, de la semaine, du mois et de l'année en cours
 const getRevenue = async () => {

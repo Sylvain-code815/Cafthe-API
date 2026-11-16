@@ -3,7 +3,6 @@ const db = require("../../db");
 // Colonnes publiques d'un client : le mot de passe haché n'en fait JAMAIS partie
 const PUBLIC_COLUMNS = "code_client, nom_client, prenom_client, email, telephone, num_employe_createur, created_at";
 
-// Rechercher un client par son id (sans mot de passe)
 const findClientById = async (id) => {
     const [rows] = await db.query(`SELECT ${PUBLIC_COLUMNS} FROM client WHERE code_client = ?`, [id]);
     return rows;
@@ -16,13 +15,11 @@ const findClientByEmail = async (email) => {
     return rows;
 };
 
-// Récupérer l'empreinte du mot de passe d'un client (changement de mot de passe)
 const findClientPasswordHash = async (id) => {
     const [rows] = await db.query("SELECT mdp FROM client WHERE code_client = ?", [id]);
     return rows[0]?.mdp;
 };
 
-// Créer un nouveau client
 // mdp = null et num_employe_createur renseigné quand le client est créé en caisse par un vendeur
 const createClient = async (clientData) => {
     const { nom, prenom, mdp = null, email, telephone, num_employe_createur = null } = clientData;
@@ -34,7 +31,6 @@ const createClient = async (clientData) => {
     return result;
 };
 
-// Mettre à jour les informations d'un client
 const updateClient = async (id, data) => {
     const { nom, prenom, email, telephone } = data;
     const [result] = await db.query(
@@ -44,7 +40,6 @@ const updateClient = async (id, data) => {
     return result;
 };
 
-// Mettre à jour le mot de passe d'un client (changement ou activation d'un compte boutique)
 const updatePassword = async (id, newHash) => {
     const [result] = await db.query(
         "UPDATE client SET mdp = ? WHERE code_client = ?",
@@ -53,7 +48,6 @@ const updatePassword = async (id, newHash) => {
     return result;
 };
 
-// Rechercher des clients par nom, prénom, email ou téléphone (vente en caisse)
 const searchClients = async (search) => {
     const like = `%${search}%`;
     const [rows] = await db.query(
@@ -67,8 +61,7 @@ const searchClients = async (search) => {
     return rows;
 };
 
-// Statistiques personnalisées d'un client (CDC 5.5) :
-// nombre de commandes, panier moyen, montant total, dernier achat, produits favoris
+// Statistiques d'un client : commandes, panier moyen, total, dernier achat, produits favoris
 const getClientStats = async (id) => {
     const [[stats]] = await db.query(
         `SELECT COUNT(*) AS nombre_commandes,

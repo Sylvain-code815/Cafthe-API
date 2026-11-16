@@ -1,8 +1,6 @@
 const db = require("../../db");
 
-// Colonnes de tri autorisées (liste blanche)
-// Un ORDER BY ne peut pas utiliser de "?" : on n'injecte donc jamais
-// la valeur envoyée par le client, seulement une valeur de cette liste
+// Colonnes de tri autorisées (liste blanche) : ORDER BY ne peut pas utiliser de "?"
 const SORT_COLUMNS = {
     price_asc: "prix_ttc ASC",
     price_desc: "prix_ttc DESC",
@@ -10,9 +8,7 @@ const SORT_COLUMNS = {
     name_desc: "nom_produit DESC",
 };
 
-// Fonction pour récupérer les articles du catalogue public (produits actifs)
 // filters : { category, search, minPrice, maxPrice, featured, onSale, sort, limit, offset }
-// Toutes les valeurs passent par des "?" (requête préparée)
 const getAllArticles = async (filters = {}) => {
     const conditions = ["active = 1"];
     const params = [];
@@ -43,7 +39,7 @@ const getAllArticles = async (filters = {}) => {
     const where = `WHERE ${conditions.join(" AND ")}`;
     const orderBy = SORT_COLUMNS[filters.sort] || "code_produit ASC";
 
-    // Nombre total de résultats (utile au front pour la pagination)
+    // Nombre total de résultats (pagination)
     const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM produit ${where}`, params);
 
     let sql = `SELECT * FROM produit ${where} ORDER BY ${orderBy}`;
@@ -57,7 +53,6 @@ const getAllArticles = async (filters = {}) => {
     return { rows, total };
 };
 
-// Récupérer un article par son ID
 // includeInactive : l'administrateur peut retrouver un produit désactivé
 const getArticleById = async (id, includeInactive = false) => {
     const sql = includeInactive
@@ -67,7 +62,6 @@ const getArticleById = async (id, includeInactive = false) => {
     return rows;
 };
 
-// Créer un article, renvoie l'identifiant généré
 const createArticle = async (article) => {
     const [result] = await db.query(
         `INSERT INTO produit
@@ -84,7 +78,6 @@ const createArticle = async (article) => {
     return result.insertId;
 };
 
-// Mettre à jour un article existant
 const updateArticle = async (id, article) => {
     const [result] = await db.query(
         `UPDATE produit SET
@@ -102,7 +95,7 @@ const updateArticle = async (id, article) => {
     return result.affectedRows;
 };
 
-// "Supprimer" un article = le désactiver (on garde l'historique des commandes)
+// Suppression logique : on garde l'historique des commandes
 const deactivateArticle = async (id) => {
     const [result] = await db.query(
         "UPDATE produit SET active = 0 WHERE code_produit = ? AND active = 1",

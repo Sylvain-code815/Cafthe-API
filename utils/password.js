@@ -1,5 +1,4 @@
 // Hachage et vérification des mots de passe (bcryptjs)
-// Partagé par les clients et les employés (principe DRY)
 const bcrypt = require("bcryptjs");
 
 // Coût du hachage : 2^10 itérations par défaut (bon compromis sécurité / temps de réponse)

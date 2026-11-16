@@ -84,8 +84,7 @@ const buildWebOrder = (clientId, body) => {
         mode: ORDER_MODES.WEB,
         status: ORDER_STATUS_FLOW[0],
         paymentMode: mode_paiement,
-        // Paiement en ligne simulé : l'intégration d'un prestataire (Stripe, PayPal)
-        // sort du périmètre du projet. "in_store" = payé au retrait.
+        // Paiement en ligne simulé ("in_store" = payé au retrait)
         paid: mode_paiement !== "in_store",
         deliveryMode: mode_livraison,
         deliveryDays: delivery.days,
@@ -142,9 +141,9 @@ const buildStoreOrder = (body) => {
     };
 };
 
-// Email de confirmation d'une commande web (CDC 4.4)
+// Email de confirmation d'une commande web
 // La commande est déjà enregistrée : un échec d'envoi est journalisé mais ne l'annule pas.
-// Les ventes en caisse n'en reçoivent pas (ticket par email = priorité faible, CDC 5.4.1)
+// Pas d'email pour les ventes en caisse
 const sendOrderConfirmation = async (orderId) => {
     try {
         const order = await getOrderById(orderId);

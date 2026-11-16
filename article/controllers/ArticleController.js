@@ -1,4 +1,4 @@
-// Les données passent par le controller, qui les envoient à l'utilisateur
+// Contrôleur Articles : catalogue public et gestion par l'administrateur
 const {
     getAllArticles,
     getArticleById,
@@ -113,7 +113,7 @@ const buildArticle = (input) => {
             type_vente: input.type_vente.trim(),
             tva,
             prix_HT: input.prix_HT,
-            // Donnée calculée (dictionnaire de données) : prix_HT * (1 + tva/100)
+            // Donnée calculée : prix_HT * (1 + tva/100)
             prix_ttc: roundPrice(input.prix_HT * (1 + tva / 100)),
             stock: input.stock,
             image: input.image.trim(),
@@ -151,7 +151,6 @@ const sendArticleList = async (res, filters, message) => {
     }
 };
 
-// Récupérer tous les articles (filtres, tri et pagination facultatifs)
 const getAll = async (req, res) => {
     const { filters, error } = parseCatalogFilters(req.query);
     if (error) {
@@ -160,7 +159,6 @@ const getAll = async (req, res) => {
     await sendArticleList(res, filters, "Articles récupérés avec succès");
 };
 
-// Récupérer les produits par catégorie
 const getByCategorie = async (req, res) => {
     const category = findCategory(req.params.categorie);
     if (!category) {
@@ -169,17 +167,14 @@ const getByCategorie = async (req, res) => {
     await sendArticleList(res, { category }, `Articles de la catégorie ${category}`);
 };
 
-// Récupérer les articles en promotion
 const getPromo = async (req, res) => {
     await sendArticleList(res, { onSale: true }, "Articles en promotion récupérés avec succès");
 };
 
-// Récupérer les produits phares
 const getPhare = async (req, res) => {
     await sendArticleList(res, { featured: true }, "Produits phares récupérés avec succès");
 };
 
-// Récupérer un article par son id
 const getById = async (req, res) => {
     // parseId refuse "5abc" ou "1 OR 1=1" (parseInt aurait accepté "5abc")
     const articleId = parseId(req.params.id);
@@ -195,7 +190,6 @@ const getById = async (req, res) => {
                 message: "Article non trouvé"
             });
         }
-        // Sinon, on renvoie le premier élément du tableau (l'article)
         res.json({
             message: "Article récupéré avec succès",
             article: articles[0]
@@ -209,9 +203,7 @@ const getById = async (req, res) => {
     }
 };
 
-// Créer un article (administrateur)
 const create = async (req, res) => {
-    // Valeurs par défaut des champs facultatifs
     const { article, errors } = buildArticle({
         stock: 0,
         image: "",
@@ -242,7 +234,6 @@ const create = async (req, res) => {
     }
 };
 
-// Mettre à jour un article (administrateur)
 // Seuls les champs envoyés sont modifiés, les autres gardent leur valeur actuelle
 const update = async (req, res) => {
     const articleId = parseId(req.params.id);
@@ -285,7 +276,7 @@ const update = async (req, res) => {
     }
 };
 
-// Supprimer un article (administrateur) : désactivation logique
+// Suppression logique : le produit est désactivé
 const remove = async (req, res) => {
     const articleId = parseId(req.params.id);
     if (!articleId) {

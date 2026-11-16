@@ -1,21 +1,10 @@
--- =====================================================================
--- CafThé - Création complète de la base de données (MySQL 8 / MariaDB 10.4+)
--- Schéma physique de production + jeu de données de test
---
--- Installation neuve :
---   mysql -u root -p < database/cafthe.sql
---   mysql -u root -p < database/create_user.sql
--- Base déjà en service : NE PAS utiliser ce fichier (il supprime la base),
--- appliquer les migrations de database/migrations/ dans l'ordre (001, 002...)
--- =====================================================================
+-- CafThé : création complète de la base (MySQL 8 / MariaDB 10.4+) avec jeu de données de test
 
 DROP DATABASE IF EXISTS cafthe;
 CREATE DATABASE cafthe CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE cafthe;
 
--- ---------------------------------------------------------------------
 -- EMPLOYE (role : 'ROLE_ADMIN' ou 'ROLE_SELLER')
--- ---------------------------------------------------------------------
 CREATE TABLE employe (
   num_employe INT NOT NULL AUTO_INCREMENT,
   nom_employe VARCHAR(60) NOT NULL,
@@ -28,12 +17,8 @@ CREATE TABLE employe (
   UNIQUE KEY email_employe (email_employe)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------
 -- CLIENT
--- mdp NULL : fiche créée en caisse par un vendeur (num_employe_createur),
---            le client l'active en ligne en choisissant son mot de passe
--- created_at : KPI "évolution du nombre de clients" (CDC 5.6)
--- ---------------------------------------------------------------------
+-- mdp NULL : fiche créée en caisse par un vendeur (le client l'active en ligne)
 CREATE TABLE client (
   code_client INT NOT NULL AUTO_INCREMENT,
   nom_client VARCHAR(60) NOT NULL,
@@ -49,9 +34,7 @@ CREATE TABLE client (
   CONSTRAINT client_ibfk_1 FOREIGN KEY (num_employe_createur) REFERENCES employe (num_employe) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------
 -- ADRESSE (carnet d'adresses : un client possède 0 à N adresses)
--- ---------------------------------------------------------------------
 CREATE TABLE adresse (
   id_adresse INT NOT NULL AUTO_INCREMENT,
   code_client INT NOT NULL,
@@ -65,12 +48,9 @@ CREATE TABLE adresse (
   CONSTRAINT adresse_ibfk_1 FOREIGN KEY (code_client) REFERENCES client (code_client) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------
 -- PRODUIT
--- Produit vendu au poids (type_vente autre que Sachet / Boite / Unité) :
--- prix_ttc et stock sont exprimés pour 100 g
--- active = 0 : produit retiré du catalogue, conservé pour l'historique (CDC 5.3.1)
--- ---------------------------------------------------------------------
+-- Produit vendu au poids : prix_ttc et stock pour 100 g
+-- active = 0 : produit retiré du catalogue, conservé pour l'historique
 CREATE TABLE produit (
   code_produit INT NOT NULL AUTO_INCREMENT,
   sku VARCHAR(20) NOT NULL,
@@ -96,9 +76,6 @@ CREATE TABLE produit (
   CONSTRAINT chk_produit_remise CHECK (taux_remise BETWEEN 0 AND 90)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------
--- PROMOTION
--- ---------------------------------------------------------------------
 CREATE TABLE promotion (
   code_promo INT NOT NULL AUTO_INCREMENT,
   nom_promotion VARCHAR(100) NOT NULL,
@@ -110,7 +87,6 @@ CREATE TABLE promotion (
   PRIMARY KEY (code_promo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------
 -- COMMANDE
 -- statut_commande : 'pending' -> 'preparing' -> 'shipped' -> 'delivered'
 -- mode_commande   : 'web' (site) ou 'store' (vente en caisse)
@@ -118,7 +94,6 @@ CREATE TABLE promotion (
 -- adresses NULL   : retrait en magasin ou vente en caisse
 -- date_paiement NULL : paiement différé au retrait
 -- total : lignes (remises comprises) + frais de livraison
--- ---------------------------------------------------------------------
 CREATE TABLE commande (
   num_commande INT NOT NULL AUTO_INCREMENT,
   code_client INT NOT NULL,
@@ -139,10 +114,8 @@ CREATE TABLE commande (
   CONSTRAINT commande_ibfk_3 FOREIGN KEY (id_adresse_facturation) REFERENCES adresse (id_adresse)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------
 -- LIGNE_COMMANDE (prix figé au moment de l'achat)
 -- quantite : unités, ou tranches de 100 g pour un produit vendu au poids
--- ---------------------------------------------------------------------
 CREATE TABLE ligne_commande (
   num_commande INT NOT NULL,
   code_produit INT NOT NULL,
@@ -155,9 +128,7 @@ CREATE TABLE ligne_commande (
   CONSTRAINT chk_lc_quantite CHECK (quantite > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------
 -- LIVRAISON (choix_transporteur : standard, express ou free)
--- ---------------------------------------------------------------------
 CREATE TABLE livraison (
   num_bl INT NOT NULL AUTO_INCREMENT,
   num_commande INT NOT NULL,
@@ -169,11 +140,9 @@ CREATE TABLE livraison (
   CONSTRAINT livraison_ibfk_1 FOREIGN KEY (num_commande) REFERENCES commande (num_commande) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------------------------------------------------------------
 -- PASSWORD_RESET (mot de passe oublié, clients et personnel)
 -- Jeton valable 1 heure, à usage unique ; seule son empreinte SHA-256 est stockée.
 -- account_type = 'client' ou 'employee' : account_id pointe vers client ou employe
--- ---------------------------------------------------------------------
 CREATE TABLE password_reset (
   id INT NOT NULL AUTO_INCREMENT,
   account_type VARCHAR(10) NOT NULL,
@@ -188,11 +157,8 @@ CREATE TABLE password_reset (
   CONSTRAINT chk_password_reset_type CHECK (account_type IN ('client', 'employee'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- =====================================================================
 -- JEU DE DONNÉES DE TEST
 -- Mot de passe de TOUS les comptes de test : CafThe#2026test
--- (empreinte bcrypt, coût 10 - ne jamais utiliser en production)
--- =====================================================================
 
 INSERT INTO employe (num_employe, nom_employe, prenom_employe, mdp_employe, email_employe, tel_employe, role) VALUES
 (1, 'Admin', 'Super', '$2b$10$RV4TjqKvG0g33FPPBy6G5OOZ5twwGDMgqclOk8yqsQVuHKWqhpBI.', 'admin@cafthe.com', '0102030405', 'ROLE_ADMIN'),

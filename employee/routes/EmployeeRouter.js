@@ -1,5 +1,4 @@
-// Router Employés
-// chemin : /api/employees
+// Router Employés : /api/employees
 
 const express = require("express");
 const { login, logout, getAll, create, update, remove } = require("../controllers/EmployeeController");

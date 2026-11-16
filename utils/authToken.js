@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const COOKIE_NAME = "token";
 
 // Durées de session (en secondes) :
-// - personnel : 30 minutes (CDC 5.1 : timeout après 30 min d'inactivité)
+// - personnel : 30 minutes d'inactivité
 // - client : JWT_EXPIRES_IN du .env, 1 heure par défaut
 const STAFF_SESSION_SECONDS = 30 * 60;
 const CLIENT_SESSION_SECONDS = parseInt(process.env.JWT_EXPIRES_IN, 10) || 3600;

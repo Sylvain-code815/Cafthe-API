@@ -1,6 +1,5 @@
 // Tests d'intégration des routes /api/articles (Supertest)
-// La base de données est remplacée par des fonctions simulées (mocks) :
-// on teste le routeur, le vigile et le contrôleur sans dépendre de MySQL
+// La BDD est simulée (mocks) : pas de dépendance à MySQL
 jest.mock("../db", () => ({ query: jest.fn(), getConnection: jest.fn() }));
 jest.mock("../article/models/ArticleModel", () => ({
     ...jest.requireActual("../article/models/ArticleModel"),

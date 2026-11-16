@@ -1,8 +1,5 @@
 // Envoi des emails (mot de passe oublié, confirmation de commande)
-// MAIL_TRANSPORT choisit le mode d'envoi :
-// - "sendmail" : sendmail du serveur (hébergement Plesk), aucun identifiant nécessaire
-// - "smtp"     : serveur SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD)
-// - "log"      : développement et tests, l'email est affiché dans la console au lieu d'être envoyé
+// MAIL_TRANSPORT : "sendmail", "smtp" (SMTP_*) ou "log" (affiché dans la console)
 const nodemailer = require("nodemailer");
 
 const createTransport = () => {

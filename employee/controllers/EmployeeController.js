@@ -1,5 +1,4 @@
 // Contrôleur Employés : connexion du personnel et gestion des comptes vendeurs
-// (CDC 5.2 : seul l'administrateur peut créer, modifier ou supprimer un compte vendeur)
 const {
     findEmployeeByEmail,
     findEmployeeById,
@@ -50,7 +49,6 @@ const buildEmployee = (input, passwordRequired) => {
 };
 
 // POST /api/employees/login - Connexion du personnel (session de 30 minutes)
-// Body : { email, mdp }
 const login = async (req, res) => {
     const { mdp } = req.body || {};
     const email = normalizeEmail(req.body?.email);

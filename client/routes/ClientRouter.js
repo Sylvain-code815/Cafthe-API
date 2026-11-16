@@ -1,6 +1,6 @@
 // chemin : /api/clients
 
-const express = require('express'); // Les deux const sont des bibliothèques, pas des fonctions donc on appelle à chaque fois
+const express = require('express');
 const {
     register,
     activate,
@@ -23,48 +23,31 @@ const router = express.Router();
 const clientOnly = [verifyToken, requireRole(ROLES.CLIENT)];
 const staffOnly = [verifyToken, requireRole(...STAFF_ROLES)];
 
-// Vérification de session du client
-// Route protégée
-// GET /api/clients/me
+// GET /api/clients/me - Vérification de session (route protégée)
 router.get("/me", clientOnly, getMe);
 
-// Déconnexion
-// POST /api/clients/logout
+// POST /api/clients/logout - Déconnexion
 router.post("/logout", logout)
 
-// Inscription d'un client (limitée contre la force brute)
-// POST /api/clients/register
-// Body : { nom, prenom, email, mdp, telephone }
+// POST /api/clients/register - Inscription (limitée contre la force brute)
 router.post("/register", authLimiter, register);
 
-// Activation d'un compte créé en boutique
-// POST /api/clients/activate
-// Body : { email, telephone, mdp }
+// POST /api/clients/activate - Activation d'un compte créé en boutique
 router.post("/activate", authLimiter, activate);
 
-// Connexion
-// POST /api/clients/login
-// Body : { email, mdp }
-// Dépose le token JWT dans un cookie HttpOnly
+// POST /api/clients/login - Connexion (token JWT dans un cookie HttpOnly)
 router.post("/login", authLimiter, login);
 
-// Mot de passe oublié : envoie un lien de réinitialisation par email
-// POST /api/clients/forgot-password
-// Body : { email }
+// POST /api/clients/forgot-password - Lien de réinitialisation par email
 router.post("/forgot-password", authLimiter, forgotPassword);
 
-// Nouveau mot de passe à partir du lien reçu par email
-// POST /api/clients/reset-password
-// Body : { token, mdp }
+// POST /api/clients/reset-password - Nouveau mot de passe via le lien reçu
 router.post("/reset-password", authLimiter, resetPassword);
 
-// Modification du profil
-// PUT /api/clients/me
+// PUT /api/clients/me - Modification du profil
 router.put("/me", clientOnly, updateProfile);
 
-// Changement de mot de passe
-// PUT /api/clients/me/password
-// Body : { ancienMdp, nouveauMdp }
+// PUT /api/clients/me/password - Changement de mot de passe
 router.put("/me/password", clientOnly, changePassword);
 
 // Gestion des clients en magasin (vendeur ou administrateur)

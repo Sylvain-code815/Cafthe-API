@@ -1,6 +1,6 @@
 // Point d'entrée du serveur : démarre l'application définie dans app.js
 
-require('dotenv').config({ quiet: true }); // Sert à charger les var d'en depuis .env
+require('dotenv').config({ quiet: true }); // Charge les variables du fichier .env
 
 // Sans clé secrète, aucun token JWT ne peut être signé : on refuse de démarrer
 if (!process.env.JWT_SECRET) {
@@ -8,12 +8,11 @@ if (!process.env.JWT_SECRET) {
     process.exit(1);
 }
 
-//Connexion à la bdd (base de données) : vérifiée dès le démarrage
+// Connexion à la base : vérifiée dès le démarrage
 require('./db');
 
 const app = require('./app');
 
-// Démarrage du serveur
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || "localhost";
 

@@ -4,8 +4,8 @@ const { COOKIE_NAME } = require("../utils/authToken");
 
 // Vérifie que la requête porte un token JWT valide
 const verifyToken = (req, res, next) => {
-    // 1. Récupérer le token (Cookie HttpOnly OU en-tête Authorization: Bearer)
-    let token = req.cookies?.[COOKIE_NAME]; // Opérateur optionnel (?.) pour éviter le crash
+    // Token dans le cookie HttpOnly ou l'en-tête Authorization: Bearer
+    let token = req.cookies?.[COOKIE_NAME]; // ?. : pas de crash si aucun cookie
 
     if (!token) {
         const authHeader = req.headers.authorization;
@@ -14,19 +14,17 @@ const verifyToken = (req, res, next) => {
         }
     }
 
-    // 2. Si toujours pas de token
     if (!token) {
         return res.status(401).json({ message: "Accès refusé. Token manquant." });
     }
 
-    // 3. Vérification de la signature avec la clé secrète du serveur
-    // (algorithme imposé pour refuser un token forgé avec "alg: none")
+    // Signature vérifiée, algorithme imposé (refuse un token forgé avec "alg: none")
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
 
-        // Injection de l'identité dans la requête pour les contrôleurs
+        // Identité injectée dans la requête
         req.user = { id: decoded.id, role: decoded.role };
-        next(); // Passe au controller suivant
+        next(); // Passe au contrôleur suivant
     } catch (err) {
         // 401 : l'identité n'est pas prouvée (token expiré, modifié ou mal formé)
         return res.status(401).json({ message: "Token invalide ou expiré." });
