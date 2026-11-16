@@ -46,8 +46,7 @@ mêmes formats de réponse) et ajouter ce qui manque pour le CDC et le référen
 email, export CSV/Excel, alertes automatiques (stock, commandes, objectifs), sauvegarde automatique quotidienne.
 
 **Hors périmètre, à assumer à l'oral :** paiement réel (le mode est enregistré, le paiement est simulé ;
-les données de carte ne sont jamais envoyées à l'API), email de confirmation de commande
-(le mot de passe oublié par email a été ajouté en novembre 2026, fiche M18), gestion des campagnes de `promotion`
+les données de carte ne sont jamais envoyées à l'API), gestion des campagnes de `promotion`
 (la remise produit `taux_remise` est, elle, appliquée).
 
 ---
@@ -356,6 +355,24 @@ Dépôt `cafthereact`, branche `feat/cdc-missing-features`. Code écrit avec l'a
 | Correction : l'ajout rapide d'un produit en vrac se faisait sans poids et l'API refusait la commande | | composants du catalogue |
 
 25 tests Vitest passent, `npm run build` passe, aucune nouvelle alerte ESLint.
+
+### M21 — Email de confirmation de commande (novembre 2026)
+
+Seul point du périmètre exigé (hors priorité faible) encore manquant après la relecture du cahier des charges.
+Code écrit avec l'aide de l'IA.
+
+| Modification | Pourquoi | Où |
+|---|---|---|
+| Après une commande web, l'API relit la commande enregistrée et envoie au client un récapitulatif : numéro, produits (poids en grammes pour le vrac), mode et frais de livraison, adresse, délai, paiement, total TTC | CDC 4.4, étape 4 « Email de confirmation automatique » | `order/orderConfirmationEmail.js`, `order/controllers/OrderController.js` (`sendOrderConfirmation`) |
+| Le contenu vient de la base (`getOrderById`), pas de la requête | Les prix et le total de l'email sont ceux réellement enregistrés | `order/controllers/OrderController.js` |
+| Un échec d'envoi est journalisé, la réponse reste 201 | La commande est déjà validée (transaction terminée) : un serveur mail indisponible ne doit pas faire croire au client que sa commande a échoué | `order/controllers/OrderController.js` |
+| Pas d'email pour une vente en caisse | Ticket par email = priorité faible (CDC 5.4.1) | `order/controllers/OrderController.js` |
+| Même module d'envoi que le mot de passe oublié | Aucune nouvelle variable d'environnement : `MAIL_TRANSPORT`, `MAIL_FROM` suffisent | `utils/mailer.js` |
+
+Tests : 128 tests (121 avant) ; `tests/orderConfirmationEmail.test.js` (4 tests sur le contenu) et 3 tests dans
+`tests/orders.test.js` (email envoyé au client, commande conservée si l'envoi échoue, rien pour une vente en caisse).
+Vérifié aussi sur la base locale : vraie commande (Robusta x 1 + Darjeeling 200 g, livraison standard), email affiché
+dans la console avec le bon total (48,24 €), puis commande de test supprimée et stock remis.
 
 ---
 

@@ -622,6 +622,9 @@ paths:
           or free (7 days) + `id_adresse_livraison`; payment `card` or `paypal`.
         - Customer, store pickup: `mode_livraison: pickup`, payment `card`, `paypal` or `in_store` (paid on pickup).
         - Staff, in-store sale: `code_client`, payment `card`, `cash` or `check`; the order is created as `delivered`.
+
+        After a customer order, a confirmation email (order number, lines, delivery, payment, total) is sent
+        to the customer. A failed email is logged and does not cancel the order. No email for in-store sales.
       security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
