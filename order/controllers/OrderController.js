@@ -17,6 +17,8 @@ const {
     WEIGHT_UNIT_GRAMS,
 } = require("../../config/constants");
 const { parseId, isIntInRange, isValidId } = require("../../utils/validators");
+const { sendMail } = require("../../utils/mailer");
+const { buildOrderConfirmationEmail } = require("../orderConfirmationEmail");
 
 const MAX_LINES = 50;
 const MAX_QUANTITY = 100;
@@ -140,6 +142,20 @@ const buildStoreOrder = (body) => {
     };
 };
 
+// Email de confirmation d'une commande web (CDC 4.4)
+// La commande est déjà enregistrée : un échec d'envoi est journalisé mais ne l'annule pas.
+// Les ventes en caisse n'en reçoivent pas (ticket par email = priorité faible, CDC 5.4.1)
+const sendOrderConfirmation = async (orderId) => {
+    try {
+        const order = await getOrderById(orderId);
+        if (order?.email) {
+            await sendMail(buildOrderConfirmationEmail(order));
+        }
+    } catch (error) {
+        console.error(`Email de confirmation de la commande ${orderId} non envoyé:`, error.message);
+    }
+};
+
 // POST /api/orders - Passer une commande (client) ou enregistrer une vente en caisse (personnel)
 const create = async (req, res) => {
     const body = req.body || {};
@@ -159,6 +175,9 @@ const create = async (req, res) => {
 
     try {
         const { num_commande, total } = await createOrder({ ...order, lines });
+        if (order.mode === ORDER_MODES.WEB) {
+            await sendOrderConfirmation(num_commande);
+        }
         res.status(201).json({
             message: "Commande enregistrée avec succès",
             num_commande,

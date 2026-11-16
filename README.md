@@ -113,6 +113,13 @@ Le lien est valable 1 heure et ne sert qu'une fois ; une nouvelle demande annule
 La réponse est toujours la même, que l'email ait un compte ou non. En développement (`MAIL_TRANSPORT=log`),
 l'email est affiché dans la console au lieu d'être envoyé.
 
+### Email de confirmation de commande
+
+Après une commande passée sur le site, l'API envoie au client un récapitulatif (numéro de commande, produits,
+livraison, paiement, total TTC) avec le même module d'envoi (`utils/mailer.js`, mêmes variables `MAIL_*`).
+Si l'envoi échoue, l'erreur est journalisée mais la commande reste enregistrée. Les ventes en caisse n'envoient
+pas d'email (ticket par email : priorité faible dans le cahier des charges).
+
 ### Procédure de déploiement
 
 1. Récupérer le code : `git pull` (ou clone de la branche principale).

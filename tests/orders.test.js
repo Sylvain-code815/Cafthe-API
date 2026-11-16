@@ -8,11 +8,13 @@ jest.mock("../order/models/OrderModel", () => ({
     getAllOrders: jest.fn(),
     updateOrderStatus: jest.fn(),
 }));
+jest.mock("../utils/mailer");
 
 const request = require("supertest");
 const app = require("../app");
 const OrderModel = require("../order/models/OrderModel");
 const { authHeader } = require("./helpers");
+const { sendMail } = require("../utils/mailer");
 
 const homeDelivery = {
     lines: [{ code_produit: 3, quantite: 2 }],
@@ -122,6 +124,60 @@ describe("POST /api/orders", () => {
         expect(OrderModel.createOrder).toHaveBeenCalledWith(expect.objectContaining({
             codeClient: 3, mode: "store", status: "delivered", paid: true,
         }));
+    });
+});
+
+describe("POST /api/orders - email de confirmation (CDC 4.4)", () => {
+    const savedOrder = {
+        num_commande: 20,
+        email: "marie.dupont@email.com",
+        prenom_client: "Marie",
+        mode_paiement: "card",
+        total: "29.99",
+        adresse_livraison: { rue: "1 rue des Lilas", cp: "41000", ville: "Blois", pays: "France" },
+        livraison: { choix_transporteur: "standard", delai_livraison: 5 },
+        lignes: [{ nom_produit: "Robusta", type_vente: "Unité", quantite: 2, sous_total: "25.00" }],
+    };
+
+    test("commande web : le récapitulatif est envoyé à l'email du client", async () => {
+        OrderModel.createOrder.mockResolvedValue({ num_commande: 20, total: 29.99 });
+        OrderModel.getOrderById.mockResolvedValue(savedOrder);
+
+        const res = await request(app).post("/api/orders").set(authHeader("ROLE_CLIENT", 1)).send(homeDelivery);
+
+        expect(res.status).toBe(201);
+        expect(OrderModel.getOrderById).toHaveBeenCalledWith(20);
+        expect(sendMail).toHaveBeenCalledTimes(1);
+        const mail = sendMail.mock.calls[0][0];
+        expect(mail.to).toBe("marie.dupont@email.com");
+        expect(mail.subject).toContain("n° 20");
+        expect(mail.text).toContain("Total TTC : 29,99 €");
+    });
+
+    test("la commande reste enregistrée (201) même si l'envoi de l'email échoue", async () => {
+        OrderModel.createOrder.mockResolvedValue({ num_commande: 21, total: 29.99 });
+        OrderModel.getOrderById.mockResolvedValue({ ...savedOrder, num_commande: 21 });
+        sendMail.mockRejectedValueOnce(new Error("sendmail indisponible"));
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+
+        const res = await request(app).post("/api/orders").set(authHeader("ROLE_CLIENT", 1)).send(homeDelivery);
+
+        expect(res.status).toBe(201);
+        expect(res.body.num_commande).toBe(21);
+        expect(consoleError).toHaveBeenCalled();
+        consoleError.mockRestore();
+    });
+
+    test("vente en caisse : pas d'email (ticket par email = priorité faible)", async () => {
+        OrderModel.createOrder.mockResolvedValue({ num_commande: 22, total: 31.8 });
+
+        const res = await request(app)
+            .post("/api/orders")
+            .set(authHeader("ROLE_SELLER", 2))
+            .send({ lines: [{ code_produit: 1, quantite: 2 }], mode_paiement: "cash", code_client: 3 });
+
+        expect(res.status).toBe(201);
+        expect(sendMail).not.toHaveBeenCalled();
     });
 });
 
