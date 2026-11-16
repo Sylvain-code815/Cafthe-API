@@ -1,5 +1,4 @@
-// Router Adresses
-// chemin : /api/adresses
+// Router Adresses : /api/adresses
 
 const express = require("express");
 const { getAll, create, update, remove } = require("../controllers/AdresseController");
@@ -8,7 +7,7 @@ const { ROLES } = require("../../config/constants");
 
 const router = express.Router();
 
-// Toutes les routes adresses sont réservées au client connecté
+// Routes réservées au client connecté
 router.use(verifyToken, requireRole(ROLES.CLIENT));
 
 // GET /api/adresses - Récupérer les adresses du client connecté

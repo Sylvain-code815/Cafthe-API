@@ -1,6 +1,4 @@
-// Fonctions de validation des entrées utilisateur
-// Règle : on ne fait JAMAIS confiance aux données envoyées par le client,
-// même si le front les a déjà vérifiées (un attaquant peut appeler l'API directement)
+// Validation des entrées utilisateur : on ne fait jamais confiance aux données du client
 
 const MAX_INT = 2147483647; // Valeur max d'une colonne INT MySQL
 
@@ -74,12 +72,11 @@ const isValidPrice = (value) => {
 const normalizeText = (value) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 // Regroupe les erreurs de validation dans une réponse lisible par le front
-// (le front affiche data.message)
 const validationError = (res, errors) => {
     return res.status(400).json({ message: errors.join(". "), errors });
 };
 
-// Référence SKU du produit (CDC 5.3.2) : 3 lettres de catégorie + 4 chiffres, ex. CAF-0001
+// Référence SKU du produit : 3 lettres de catégorie + 4 chiffres, ex. CAF-0001
 const isValidSku = (value) => typeof value === "string" && /^[A-Z]{3}-\d{4}$/.test(value.trim());
 
 module.exports = {

@@ -1,5 +1,4 @@
-// Router Commandes
-// chemin : /api/orders
+// Router Commandes : /api/orders
 
 const express = require("express");
 const { create, getMine, getById, getAll, updateStatus } = require("../controllers/OrderController");
@@ -7,8 +6,7 @@ const { verifyToken, requireRole } = require("../../middleware/authMiddleware");
 const { ROLES, STAFF_ROLES } = require("../../config/constants");
 const router = express.Router();
 
-// Toutes les routes commandes nécessitent d'être connecté
-// (CDC 2.2 : un visiteur consulte le catalogue mais n'achète pas)
+// Routes réservées aux utilisateurs connectés
 router.use(verifyToken);
 
 // POST /api/orders - Commande en ligne (client) ou vente en caisse (vendeur / admin)

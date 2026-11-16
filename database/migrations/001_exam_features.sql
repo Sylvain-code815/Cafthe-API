@@ -1,20 +1,12 @@
--- =====================================================================
--- CafThé - Migration 001 : base déjà en service (locale ou production)
---
+-- Migration 001 : base déjà en service
 -- Fait évoluer le schéma existant sans perdre de données, pour :
--- - les comptes créés en caisse sans mot de passe (CDC 2.2)
--- - la désactivation des produits au lieu de leur suppression (CDC 5.3.1)
+-- - les comptes créés en caisse sans mot de passe
+-- - la désactivation des produits au lieu de leur suppression
 -- - le retrait en magasin et les ventes en caisse (commande sans adresse)
--- - le KPI "évolution du nombre de clients" (CDC 5.6)
+-- - le KPI "évolution du nombre de clients"
 -- - les valeurs techniques en anglais attendues par l'API
---
--- AVANT : sauvegarder la base  -> mysqldump -u root -p nom_base > sauvegarde.sql
--- PUIS  : mysql -u root -p nom_base < database/migrations/001_exam_features.sql
--- ENFIN : node scripts/hashPasswords.js (hache les mots de passe employés restés en clair)
--- =====================================================================
 
--- Attention : MySQL valide automatiquement chaque ALTER TABLE (pas de retour arrière
--- possible par transaction), d'où la sauvegarde obligatoire avant exécution.
+-- Pas de retour arrière possible : MySQL valide chaque ALTER TABLE automatiquement
 
 -- CLIENT : mot de passe facultatif + date d'inscription
 ALTER TABLE client

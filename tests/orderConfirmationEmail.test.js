@@ -1,4 +1,4 @@
-// Tests unitaires du contenu de l'email de confirmation de commande (CDC 4.4)
+// Tests unitaires du contenu de l'email de confirmation de commande
 const { buildOrderConfirmationEmail } = require("../order/orderConfirmationEmail");
 
 const baseOrder = {

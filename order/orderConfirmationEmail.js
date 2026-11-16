@@ -1,5 +1,4 @@
-// Email de confirmation envoyé au client après une commande passée sur le site (CDC 4.4, étape 4)
-// Construit à partir du détail renvoyé par getOrderById : en-tête, lignes, adresse et livraison
+// Email de confirmation envoyé au client après une commande en ligne
 const { isSoldByWeight } = require("../utils/pricing");
 const { DELIVERY_MODES, WEIGHT_UNIT_GRAMS } = require("../config/constants");
 

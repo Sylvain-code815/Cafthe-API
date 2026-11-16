@@ -1,7 +1,6 @@
 const { getAllPromotions, getActivePromotions, getPromotionById } = require("../models/PromotionModel");
 const { parseId } = require("../../utils/validators");
 
-// Récupérer toutes les promotions
 const getAll = async (req, res) => {
     try {
         const promotions = await getAllPromotions();
@@ -16,7 +15,6 @@ const getAll = async (req, res) => {
     }
 };
 
-// Récupérer les promotions actives
 const getActive = async (req, res) => {
     try {
         const promotions = await getActivePromotions();
@@ -31,7 +29,6 @@ const getActive = async (req, res) => {
     }
 };
 
-// Récupérer une promotion par son id
 const getById = async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) {

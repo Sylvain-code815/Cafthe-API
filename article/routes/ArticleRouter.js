@@ -1,5 +1,4 @@
-// Router Articles
-// chemin : /api/articles
+// Router Articles : /api/articles
 
 const express = require("express");
 const {

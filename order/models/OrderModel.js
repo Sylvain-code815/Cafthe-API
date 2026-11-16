@@ -9,15 +9,8 @@ class OrderError extends Error {
     }
 }
 
-// Enregistrer une commande dans une TRANSACTION (tout ou rien) :
-// 1. vérifie que les adresses appartiennent au client
-// 2. verrouille les produits commandés (SELECT ... FOR UPDATE)
-// 3. vérifie qu'ils existent, sont actifs, vendus au bon format et en stock suffisant
-// 4. calcule le total avec les prix de la BDD, remise comprise (jamais ceux envoyés par le front)
-// 5. insère la commande, ses lignes (prix figé) et la livraison éventuelle
-// 6. décrémente les stocks
-// Si une étape échoue, ROLLBACK : aucune donnée partielle n'est enregistrée
-//
+// Enregistre une commande dans une TRANSACTION : en cas d'échec, ROLLBACK
+// Le total est recalculé avec les prix de la BDD, jamais ceux envoyés par le front
 // order : { codeClient, mode, status, paymentMode, paid, deliveryAddressId, billingAddressId,
 //           deliveryMode, deliveryDays, shippingCost, lines }
 // lines : [{ code_produit, quantite, byWeight }] sans doublon
@@ -115,7 +108,6 @@ const createOrder = async (order) => {
     }
 };
 
-// Historique des commandes d'un client (achats web ET magasin)
 const getOrdersByClient = async (clientId) => {
     const [rows] = await db.query(
         `SELECT c.num_commande, c.statut_commande, c.mode_commande, c.date_commande, c.mode_paiement,

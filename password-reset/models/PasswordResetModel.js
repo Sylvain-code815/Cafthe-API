@@ -1,6 +1,5 @@
 // Jetons de réinitialisation de mot de passe (table password_reset)
-// Le lien envoyé par email contient le jeton ; la base ne garde que son empreinte SHA-256 :
-// une fuite de la table ne permet donc pas de changer un mot de passe
+// Seule l'empreinte SHA-256 du jeton est stockée : une fuite de la table est sans danger
 const crypto = require("crypto");
 const db = require("../../db");
 

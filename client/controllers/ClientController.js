@@ -1,5 +1,4 @@
 // Contrôleur Client : inscription, connexion, espace personnel
-// et gestion des fiches clients par le personnel du magasin
 const {
     createClient,
     findClientByEmail,
@@ -32,7 +31,7 @@ const {
     validationError,
 } = require("../../utils/validators");
 
-// Format renvoyé au front (inchangé depuis la première version de l'API)
+// Format renvoyé au front
 const toPublicClient = (client) => ({
     id: client.code_client,
     nom: client.nom_client,
@@ -59,7 +58,6 @@ const openClientSession = (res, clientId) => {
     sendAuthCookie(res, { id: clientId, role: ROLES.CLIENT }, CLIENT_SESSION_SECONDS);
 };
 
-// Inscription
 const register = async (req, res) => {
     const { nom, prenom, mdp, telephone } = req.body || {};
     const email = normalizeEmail(req.body?.email);
@@ -72,7 +70,6 @@ const register = async (req, res) => {
     }
 
     try {
-        // Vérifier si l'email existe déjà
         const existingClient = await findClientByEmail(email);
         if (existingClient.length > 0) {
             // Compte créé en boutique : il doit être activé, pas recréé
@@ -82,10 +79,8 @@ const register = async (req, res) => {
             return res.status(409).json({ message });
         }
 
-        // Hacher le mot de passe (jamais stocké en clair)
         const hash = await hashPassword(mdp);
 
-        // Créer le client
         const result = await createClient({
             nom: nom.trim(),
             prenom: prenom.trim(),
@@ -96,7 +91,6 @@ const register = async (req, res) => {
 
         res.status(201).json({
             message: "Inscription réussie",
-            // insertId est la propriété standard de mysql2 pour l'ID créé
             client_id: result.insertId,
             client: { nom: nom.trim(), prenom: prenom.trim(), email },
         });
@@ -112,9 +106,7 @@ const register = async (req, res) => {
     }
 };
 
-// Activation d'un compte créé en boutique (CDC 2.2)
-// Le client prouve son identité avec l'email ET le téléphone donnés au vendeur,
-// puis choisit son mot de passe : il retrouve l'historique de ses achats magasin
+// Activation d'un compte créé en boutique : le client prouve son identité (email + téléphone) puis choisit son mot de passe
 const activate = async (req, res) => {
     const { telephone, mdp } = req.body || {};
     const email = normalizeEmail(req.body?.email);
@@ -148,7 +140,6 @@ const activate = async (req, res) => {
     }
 };
 
-// Connexion
 const login = async (req, res) => {
     const { mdp } = req.body || {};
     const email = normalizeEmail(req.body?.email);
@@ -161,7 +152,6 @@ const login = async (req, res) => {
         const clients = await findClientByEmail(email);
         const client = clients[0];
 
-        // Vérifier le mot de passe (bcrypt : le mot de passe d'origine n'est jamais reconstitué)
         // Compte inexistant ou créé en boutique sans mot de passe -> false, après le même temps de calcul
         const isMatch = await verifyPassword(mdp, client?.mdp);
 
@@ -172,7 +162,6 @@ const login = async (req, res) => {
             });
         }
 
-        // Générer le token JWT et le placer dans un cookie HttpOnly
         openClientSession(res, client.code_client);
 
         res.json({
@@ -189,10 +178,7 @@ const login = async (req, res) => {
 };
 
 
-// Permet au front de rafraîchir les données du back
-// Automatiquement, le navigateur envoie le cookie
-// Le middleware vérifie le JWT
-// Si le token est valide, on retourne les infos du client
+// Infos du client connecté (identifié par le cookie via verifyToken)
 const getMe = async (req, res) => {
     try {
         // req.user.id vient du JWT décodé par le middleware verifyToken
@@ -209,13 +195,11 @@ const getMe = async (req, res) => {
     }
 };
 
-// Fonction de déconnexion
 const logout = (req, res) => {
     clearAuthCookie(res);
     res.json({ message: "Déconnexion réussie" });
 };
 
-// Mise à jour du profil client
 // Les champs absents gardent leur valeur actuelle
 const updateProfile = async (req, res) => {
     try {
@@ -239,7 +223,6 @@ const updateProfile = async (req, res) => {
             return validationError(res, errors);
         }
 
-        // Vérifier que l'email n'est pas déjà pris par un autre client
         if (data.email !== current.email) {
             const existing = await findClientByEmail(data.email);
             if (existing.length > 0) {
@@ -259,7 +242,7 @@ const updateProfile = async (req, res) => {
     }
 };
 
-// Changement de mot de passe (CDC 5.2 : validation via l'ancien)
+// Changement de mot de passe : l'ancien est exigé
 const changePassword = async (req, res) => {
     const { ancienMdp, nouveauMdp } = req.body || {};
 
@@ -367,15 +350,14 @@ const getClientDetails = async (req, res) => {
 // Message identique que le compte existe ou non : on ne révèle pas quels emails sont inscrits
 const FORGOT_PASSWORD_MESSAGE = "Si un compte est associé à cet email, vous recevrez un mail pour changer votre mot de passe";
 
-// Adresse de la page du front qui reçoit le jeton (HashRouter : /#/reset-password)
+// Page du front qui reçoit le jeton (/#/reset-password)
 const resetPageUrl = () => {
     const front = (process.env.FRONTEND_URL || "http://localhost:5173").split(",")[0].trim();
     return process.env.RESET_PASSWORD_URL || `${front}/#/reset-password`;
 };
 
 // Mot de passe oublié : envoie par email un lien temporaire (1 heure, usage unique)
-// Fonctionne aussi pour une fiche créée en boutique sans mot de passe :
-// recevoir l'email prouve que le client possède bien cette adresse
+// Fonctionne aussi pour une fiche créée en boutique sans mot de passe
 const forgotPassword = async (req, res) => {
     const email = normalizeEmail(req.body?.email);
     if (!isValidEmail(email)) {

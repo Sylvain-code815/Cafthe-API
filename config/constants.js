@@ -1,4 +1,4 @@
-// Règles métier centralisées (une seule source de vérité, principe DRY)
+// Règles métier centralisées
 
 // Rôles portés par le token JWT
 const ROLES = {
@@ -10,8 +10,7 @@ const ROLES = {
 // Personnel du magasin (vendeur + administrateur)
 const STAFF_ROLES = [ROLES.SELLER, ROLES.ADMIN];
 
-// Catégories du catalogue et taux de TVA associé (CDC 5.3.2 :
-// 5,5 % pour le thé et le café, 20 % pour les accessoires)
+// Catégories du catalogue et taux de TVA (5,5 % thé et café, 20 % accessoires)
 const VAT_BY_CATEGORY = {
     "Thé": 5.5,
     "Café": 5.5,
@@ -19,11 +18,11 @@ const VAT_BY_CATEGORY = {
 };
 
 // Types de vente à l'unité. Tous les autres (Vrac, Grain, Moulu...) sont vendus
-// au poids : le prix est alors un prix pour 100 g (même règle que le front, utils/product.js)
+// au poids : le prix est alors un prix pour 100 g
 const UNIT_SALE_TYPES = ["Sachet", "Boite", "Unité"];
 const WEIGHT_UNIT_GRAMS = 100;
 
-// Cycle de vie d'une commande (CDC 5.4.2) :
+// Cycle de vie d'une commande :
 // pending -> preparing -> shipped -> delivered
 const ORDER_STATUS_FLOW = ["pending", "preparing", "shipped", "delivered"];
 
@@ -37,7 +36,7 @@ const ORDER_MODES = {
 const WEB_PAYMENT_MODES = ["card", "paypal", "in_store"];
 const STORE_PAYMENT_MODES = ["card", "cash", "check"];
 
-// Modes de livraison proposés sur le site (CDC 4.4 étape 2) : prix et délai maximal en jours
+// Modes de livraison : prix et délai maximal en jours
 // pickup = retrait en magasin (pas d'adresse, pas de bon de livraison)
 const DELIVERY_MODES = {
     standard: { price: 4.99, days: 5 },

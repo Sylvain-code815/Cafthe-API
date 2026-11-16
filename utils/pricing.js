@@ -5,7 +5,6 @@ const { UNIT_SALE_TYPES } = require("../config/constants");
 const roundPrice = (value) => Math.round(value * 100) / 100;
 
 // Prix réellement payé : prix TTC moins la remise si le produit est en promotion
-// (même règle que l'affichage du front : produit_promotion = 1 et taux_remise > 0)
 const getEffectivePrice = (product) => {
     const price = Number(product.prix_ttc);
     if (Number(product.produit_promotion) === 1 && product.taux_remise > 0) {

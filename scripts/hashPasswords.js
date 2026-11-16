@@ -1,6 +1,5 @@
-// Script one-shot pour hasher les mots de passe existants en clair (clients ET employés)
-// Usage : node scripts/hashPasswords.js
-// Sans danger si on le relance : les mots de passe déjà hachés sont ignorés
+// Script ponctuel : hache les mots de passe restés en clair (clients et employés)
+// Relançable sans danger : les mots de passe déjà hachés sont ignorés
 
 const db = require("../db");
 const { hashPassword, isBcryptHash } = require("../utils/password");

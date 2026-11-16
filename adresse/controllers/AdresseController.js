@@ -30,7 +30,6 @@ const buildAdresse = ({ titre, rue, cp, ville, pays }) => {
     };
 };
 
-// Récupérer les adresses du client connecté
 const getAll = async (req, res) => {
     try {
         const adresses = await getAdressesByClient(req.user.id);
@@ -45,7 +44,6 @@ const getAll = async (req, res) => {
     }
 };
 
-// Créer une adresse
 const create = async (req, res) => {
     const { adresse, errors } = buildAdresse(req.body || {});
     if (errors) {
@@ -65,7 +63,6 @@ const create = async (req, res) => {
     }
 };
 
-// Modifier une adresse
 const update = async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) {
@@ -77,8 +74,7 @@ const update = async (req, res) => {
     }
 
     try {
-        // Le filtre sur le client connecté empêche de modifier l'adresse d'un autre client :
-        // l'adresse d'un autre est traitée comme inexistante (404, pas de fuite d'information)
+        // L'adresse d'un autre client est traitée comme inexistante (404)
         const result = await updateAdresse(id, req.user.id, adresse);
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Adresse non trouvée" });
@@ -90,7 +86,6 @@ const update = async (req, res) => {
     }
 };
 
-// Supprimer une adresse
 const remove = async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) {
@@ -98,7 +93,6 @@ const remove = async (req, res) => {
     }
 
     try {
-        // Vérifier que l'adresse appartient au client
         const adresses = await getAdresseById(id, req.user.id);
         if (adresses.length === 0) {
             return res.status(404).json({ message: "Adresse non trouvée" });

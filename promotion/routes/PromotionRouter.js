@@ -1,5 +1,4 @@
-// Router Promotions
-// chemin : /api/promotions
+// Router Promotions : /api/promotions
 
 const express = require("express");
 const { getAll, getActive, getById } = require("../controllers/PromotionController");
