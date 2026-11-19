@@ -26,6 +26,7 @@ const {
     isNonEmptyString,
     isValidEmail,
     normalizeEmail,
+    normalizePhone,
     isStrongPassword,
     isValidPhone,
     validationError,
@@ -73,10 +74,11 @@ const register = async (req, res) => {
         const existingClient = await findClientByEmail(email);
         if (existingClient.length > 0) {
             // Compte créé en boutique : il doit être activé, pas recréé
-            const message = existingClient[0].mdp === null
+            const activationRequired = existingClient[0].mdp === null;
+            const message = activationRequired
                 ? "Un compte a été créé pour cet email en boutique : activez-le avec votre numéro de téléphone"
                 : "Cet email est déjà utilisé";
-            return res.status(409).json({ message });
+            return res.status(409).json({ message, activation_required: activationRequired });
         }
 
         const hash = await hashPassword(mdp);
@@ -108,7 +110,8 @@ const register = async (req, res) => {
 
 // Activation d'un compte créé en boutique : le client prouve son identité (email + téléphone) puis choisit son mot de passe
 const activate = async (req, res) => {
-    const { telephone, mdp } = req.body || {};
+    const { mdp } = req.body || {};
+    const telephone = normalizePhone(req.body?.telephone);
     const email = normalizeEmail(req.body?.email);
 
     if (!isValidEmail(email) || !isValidPhone(telephone)) {
@@ -123,7 +126,8 @@ const activate = async (req, res) => {
         const client = clients[0];
 
         // Même message dans tous les cas d'échec : on ne révèle pas si l'email existe
-        if (!client || client.mdp !== null || client.telephone !== telephone) {
+        // Les fiches créées en boutique ont pu être saisies avec des espaces (06 01 02 03 04)
+        if (!client || client.mdp !== null || normalizePhone(client.telephone) !== telephone) {
             return res.status(400).json({ message: "Impossible d'activer ce compte, vérifiez vos informations" });
         }
 
@@ -351,9 +355,11 @@ const getClientDetails = async (req, res) => {
 const FORGOT_PASSWORD_MESSAGE = "Si un compte est associé à cet email, vous recevrez un mail pour changer votre mot de passe";
 
 // Page du front qui reçoit le jeton (/#/reset-password)
+// Sans guillemets dans le .env, dotenv coupe la valeur au « # » : on rajoute alors la route
 const resetPageUrl = () => {
     const front = (process.env.FRONTEND_URL || "http://localhost:5173").split(",")[0].trim();
-    return process.env.RESET_PASSWORD_URL || `${front}/#/reset-password`;
+    const url = (process.env.RESET_PASSWORD_URL || front).trim();
+    return url.includes("#/") ? url : `${url.replace(/\/+$/, "")}/#/reset-password`;
 };
 
 // Mot de passe oublié : envoie par email un lien temporaire (1 heure, usage unique)
