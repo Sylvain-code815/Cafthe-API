@@ -119,6 +119,17 @@ describe("POST /api/clients/activate (compte créé en boutique)", () => {
         expect(res.headers["set-cookie"][0]).toMatch(/HttpOnly/);
     });
 
+    test("200 si le téléphone de la fiche boutique a été saisi avec des espaces", async () => {
+        ClientModel.findClientByEmail.mockResolvedValue([{ ...dbClient, telephone: "06 01 02 03 04", mdp: null }]);
+
+        const res = await request(app)
+            .post("/api/clients/activate")
+            .send({ email: dbClient.email, telephone: "0601020304", mdp: PASSWORD });
+
+        expect(res.status).toBe(200);
+        expect(ClientModel.updatePassword).toHaveBeenCalled();
+    });
+
     test("400 si le téléphone ne correspond pas", async () => {
         ClientModel.findClientByEmail.mockResolvedValue([{ ...dbClient, mdp: null }]);
 

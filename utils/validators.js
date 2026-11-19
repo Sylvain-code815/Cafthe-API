@@ -36,6 +36,9 @@ const isValidEmail = (value) => {
 // Normalise un email : sans espaces et en minuscules (évite les doublons Marie@... / marie@...)
 const normalizeEmail = (email) => (typeof email === "string" ? email.trim().toLowerCase() : email);
 
+// Téléphone sans espaces ni points : « 06 01 02 03 04 » devient « 0601020304 »
+const normalizePhone = (phone) => (typeof phone === "string" ? phone.replace(/[\s.]/g, "") : phone);
+
 // Recommandation CNIL : 12 caractères minimum avec majuscule, minuscule,
 // chiffre et caractère spécial
 const isStrongPassword = (value) => {
@@ -87,6 +90,7 @@ module.exports = {
     isNonEmptyString,
     isValidEmail,
     normalizeEmail,
+    normalizePhone,
     isStrongPassword,
     isValidPhone,
     isValidPostalCode,
